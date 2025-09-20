@@ -47,21 +47,21 @@ class News(Screen):
         <eLabel position="480,1075" size="480,5" zPosition="2" backgroundColor="green" />
         <widget name="green" position="480,1000" size="480,75" zPosition="2"
             font="Bold;32" halign="center" valign="center"
-            text="Update List"
+            text=""
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="0" />
 
         <eLabel position="960,1075" size="480,5" zPosition="2" backgroundColor="yellow" />
         <widget name="yellow" position="960,1000" size="480,75" zPosition="2"
             font="Bold;32" halign="center" valign="center"
-            text="Background run"
+            text=""
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="0" />
 
         <eLabel position="1440,1075" size="480,5" zPosition="2" backgroundColor="blue" />
         <widget name="blue" position="1440,1000" size="480,75" zPosition="2"
             font="Bold;32" halign="center" valign="center"
-            text="Restart Enigma2"
+            text=""
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="0" />
 
@@ -181,8 +181,11 @@ class News(Screen):
         self["github_text"] = ScrollLabel("Loading...")
         self["page_info"] = Label("Page 1/1")
 
-        # Red label
+        # Button labels
         self["red"] = Label(_("Close"))
+        self["green"] = Label(_(""))
+        self["yellow"] = Label(_(""))
+        self["blue"] = Label(_(""))
 
         # Actions
         self["actions"] = ActionMap(
