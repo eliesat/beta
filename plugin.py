@@ -16,6 +16,16 @@ from Plugins.Extensions.ElieSatPanel.menus.Softcams import Softcams
 from Plugins.Extensions.ElieSatPanel.menus.Tools import Tools
 from Plugins.Extensions.ElieSatPanel.menus.Toolsp import Toolsp
 from Plugins.Extensions.ElieSatPanel.menus.About import Abt
+
+from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
+    get_local_ip,
+    check_internet,
+    get_image_name,
+    get_python_version,
+    get_storage_info,
+    get_ram_info,
+)
+
 import os
 import socket
 import sys
@@ -63,84 +73,6 @@ except ImportError:
 
 PY3 = version_info[0] == 3
 installer = 'https://raw.githubusercontent.com/eliesat/beta/main/installer1.sh'
-
-# ---------------- NETWORK HELPERS ----------------
-def get_local_ip():
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "No IP"
-
-
-def check_internet():
-    try:
-        subprocess.check_call(
-            ["ping", "-c", "1", "-W", "1", "8.8.8.8"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        return "Online"
-    except Exception:
-        return "Offline"
-
-
-# ---------------- IMAGE / PYTHON HELPERS ----------------
-def get_image_name():
-    """
-    Return clean image name (e.g. 'openATV').
-    Priority:
-      1. /etc/image-version -> creator=...
-      2. /etc/image-version -> imagename= or image=
-      3. fallback to first non-empty line's last word in /etc/image-version
-      4. /etc/issue -> first word
-    Returns: raw string (no "Image:" prefix)
-    """
-    try:
-        path = "/etc/image-version"
-        if os.path.exists(path):
-            try:
-                with open(path, "r") as f:
-                    lines = [ln.strip() for ln in f if ln.strip()]
-                    # explicit keys
-                    for line in lines:
-                        lower = line.lower()
-                        if lower.startswith("creator="):
-                            return line.split("=", 1)[1].strip().strip('"').strip("'")
-                        if lower.startswith("imagename=") or lower.startswith("image="):
-                            return line.split("=", 1)[1].strip().strip('"').strip("'")
-                    # fallback: last word of first non-empty line
-                    if lines:
-                        return lines[0].split()[-1]
-            except Exception:
-                pass
-
-        issue = "/etc/issue"
-        if os.path.exists(issue):
-            try:
-                with open(issue, "r") as f:
-                    first = f.readline().strip()
-                    if first:
-                        return first.split()[0]
-            except Exception:
-                pass
-    except Exception:
-        pass
-    return "Unknown"
-
-
-def get_python_version():
-    """
-    Return human-readable Python version (e.g. '3.13.7').
-    """
-    try:
-        vi = sys.version_info
-        return "%d.%d.%d" % (vi.major, vi.minor, vi.micro)
-    except Exception:
-        return "Unknown"
 
 # ---------------- FLEXIBLE MENU ----------------
 class FlexibleMenu(GUIComponent):
@@ -553,7 +485,6 @@ class FlexibleMenu(GUIComponent):
         if self.instance:
             self.setL()
 
-
 # ---------------- MAIN PANEL ----------------
 class EliesatPanel(Screen):
     skin = ""
@@ -588,11 +519,15 @@ class EliesatPanel(Screen):
 
         vertical_left = "\n".join(list("Version " + Version))
         vertical_right = "\n".join(list("By ElieSat"))
-        # Network / System info labels (single prefix only)
-        self["local_ip"] = Label("IP: " + get_local_ip())
-        self["net_status"] = Label("Net: " + check_internet())
+        # System info
         self["image_name"] = Label("Image: " + get_image_name())
+        self["local_ip"] = Label("IP: " + get_local_ip())
+        self["StorageInfo"] = Label(get_storage_info())
+        self["RAMInfo"] = Label(get_ram_info())
         self["python_ver"] = Label("Python: " + get_python_version())
+        self["net_status"] = Label("Net: " + check_internet())
+        self["description"] = Label("")
+        self["panel_version"] = Label("ElieSatPanel v" + Version)
         self["left_bar"] = Label(vertical_left)
         self["right_bar"] = Label(vertical_right)
         t = Timer(0.5, self.update_me)
@@ -624,10 +559,6 @@ class EliesatPanel(Screen):
 
         # Description label
         self["description"] = Label("")
-        self["StorageInfo"] = Label(self.getStorageInfo())
-        self["RAMInfo"] = Label(self.getRAMInfo())
-        self["panel_version"] = Label("ElieSatPanel v" + Version)
-
 
         def updateDescription():
             current = self["menu"].getCurrent()
@@ -707,39 +638,6 @@ class EliesatPanel(Screen):
                     type=MessageBox.TYPE_INFO,
                     timeout=5,
                 )
-
-    def getStorageInfo(self):
-        info = []
-        mounts = {
-            'Hdd': '/media/hdd'
-        }
-        
-        for name, path in mounts.items():
-            if os.path.ismount(path):
-                try:
-                    stat = os.statvfs(path)
-                    total = (stat.f_blocks * stat.f_frsize) / (1024**3)
-                    free = (stat.f_bfree * stat.f_frsize) / (1024**3)
-                    used = total - free
-                    info.append(f"{name}: {used:.1f}GB / {total:.1f}GB")
-                except:
-                    info.append(f"{name}: Error")
-            else:
-                info.append(f"{name}: Not Available")
-        
-        return "\n".join(info)
-
-    def getRAMInfo(self):
-        try:
-            with open("/proc/meminfo") as f:
-                mem = {line.split(':')[0]: line.split(':')[1].strip() for line in f}
-            total = int(mem["MemTotal"].split()[0]) // 1024
-            free = int(mem["MemAvailable"].split()[0]) // 1024
-            used = total - free
-#            return f"Ram: {total}MB used: {used}MB Free: {free}MB"
-            return f"Ram: {used}MB / {total}MB"
-        except:
-            return "Ram: Not Available"
 
     # Red press
     def openIptvadder(self):
@@ -830,12 +728,10 @@ class EliesatPanel(Screen):
 def main(session, **kwargs):
     session.open(EliesatPanel)
 
-
 def menuHook(menuid, **kwargs):
     if menuid == "mainmenu":
         return [("ElieSatPanel", main, "eliesat_panel", 46)]
     return []
-
 
 def Plugins(**kwargs):
     return [
@@ -859,4 +755,3 @@ def Plugins(**kwargs):
             fnc=main,
         ),
     ]
-
