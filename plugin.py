@@ -62,7 +62,7 @@ except ImportError:
     from urllib2 import Request as compat_Request, urlopen as compat_urlopen
 
 PY3 = version_info[0] == 3
-installer = 'https://raw.githubusercontent.com/eliesat/eliesatpanel/main/installer1.sh'
+installer = 'https://raw.githubusercontent.com/eliesat/beta/main/installer1.sh'
 
 # ---------------- NETWORK HELPERS ----------------
 def get_local_ip():
