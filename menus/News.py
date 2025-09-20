@@ -31,7 +31,7 @@ class News(Screen):
         <eLabel position="0,0" size="1920,130" zPosition="10" backgroundColor="#000000" />
 
         <!-- 🔹 Title -->
-        <eLabel text="● Info Text – From GitHub"
+        <eLabel text="● Addons update news."
             position="350,0" size="1400,50" zPosition="11"
             font="Bold;32" halign="left" valign="center" noWrap="1"
             foregroundColor="yellow" backgroundColor="#000000"
@@ -53,13 +53,13 @@ class News(Screen):
         <!-- 🔹 Scrollable GitHub Text -->
         <widget name="github_text"
             position="200,180" size="1200,800" zPosition="12"
-            font="Regular;30" halign="left" valign="top"
+            font="Bold;32" halign="left" valign="top"
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="1" />
 
         <!-- 🔹 Page indicator -->
         <widget name="page_info"
-            position="200,1000" size="600,60" zPosition="12"
+            position="1700,940" size="600,60" zPosition="12"
             font="Bold;28" halign="left" valign="center"
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="1" />
