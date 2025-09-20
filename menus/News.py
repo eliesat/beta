@@ -44,6 +44,26 @@ class News(Screen):
             text="Close"
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="0" />
+        <eLabel position="480,1075" size="480,5" zPosition="2" backgroundColor="green" />
+        <widget name="green" position="480,1000" size="480,75" zPosition="2"
+            font="Bold;32" halign="center" valign="center"
+            text="Update List"
+            foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
+
+        <eLabel position="960,1075" size="480,5" zPosition="2" backgroundColor="yellow" />
+        <widget name="yellow" position="960,1000" size="480,75" zPosition="2"
+            font="Bold;32" halign="center" valign="center"
+            text="Background run"
+            foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
+
+        <eLabel position="1440,1075" size="480,5" zPosition="2" backgroundColor="blue" />
+        <widget name="blue" position="1440,1000" size="480,75" zPosition="2"
+            font="Bold;32" halign="center" valign="center"
+            text="Restart Enigma2"
+            foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
 
         <!-- 🔹 Left vertical black bar -->
         <eLabel position="0,130" size="80,870" zPosition="10" backgroundColor="#000000" />
