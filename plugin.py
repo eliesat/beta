@@ -16,7 +16,6 @@ from Plugins.Extensions.ElieSatPanel.menus.Softcams import Softcams
 from Plugins.Extensions.ElieSatPanel.menus.Tools import Tools
 from Plugins.Extensions.ElieSatPanel.menus.Toolsp import Toolsp
 from Plugins.Extensions.ElieSatPanel.menus.About import Abt
-
 from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
     get_local_ip,
     check_internet,
@@ -31,7 +30,8 @@ import socket
 import sys
 import math
 import subprocess
-
+from enigma import gFont, ePoint, eSize
+from skin import parseColor
 from Screens.Screen import Screen
 from Components.ActionMap import ActionMap
 from Components.Label import Label
@@ -492,7 +492,7 @@ class EliesatPanel(Screen):
     def __init__(self, session):
         Screen.__init__(self, session)
 
-        # Load skin file
+        # Load skin
         skin_file = "/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/skin/eliesatpanel.xml"
         if os.path.exists(skin_file):
             try:
@@ -506,40 +506,41 @@ class EliesatPanel(Screen):
                     font="Regular;30" halign="center" valign="center" />
             </screen>"""
 
-        # Menu widget (expects list of (name, description) tuples)
+        # --- Widgets ---
         self["menu"] = FlexibleMenu([])
-        if getattr(self["menu"], "skinAttributes", None) is None:
-            self["menu"].skinAttributes = []
+        self["description"] = Label("")
+        self["pageinfo"] = Label("")
+        self["pagelabel"] = Label("")
 
-        # Color labels
-        self["red"] = Label("Exit")
-        self["green"] = Label("")
-        self["yellow"] = Label("")
+        # --- Color buttons ---
+        self["red"] = Label("IPTV Adder")
+        self["green"] = Label("Cccam Adder")
+        self["yellow"] = Label("News")
         self["blue"] = Label("Scripts")
 
-        vertical_left = "\n".join(list("Version " + Version))
-        vertical_right = "\n".join(list("By ElieSat"))
-        # System info
+        # --- System info ---
         self["image_name"] = Label("Image: " + get_image_name())
         self["local_ip"] = Label("IP: " + get_local_ip())
         self["StorageInfo"] = Label(get_storage_info())
         self["RAMInfo"] = Label(get_ram_info())
         self["python_ver"] = Label("Python: " + get_python_version())
         self["net_status"] = Label("Net: " + check_internet())
-        self["description"] = Label("")
-        self["panel_version"] = Label("ElieSatPanel v" + Version)
-        self["left_bar"] = Label(vertical_left)
-        self["right_bar"] = Label(vertical_right)
         t = Timer(0.5, self.update_me)
         t.start()
 
-        # Menu list with descriptions
+        # --- Panel version / side bars ---
+        vertical_left = "\n".join(list("Version " + Version))
+        vertical_right = "\n".join(list("By ElieSat"))
+        self["left_bar"] = Label(vertical_left)
+        self["right_bar"] = Label(vertical_right)
+
+        # --- Menu list ---
         self.menuList = [
             ("Addons", "Manage and install plugins"),
             ("Display", "Change your image bootlogos and spinners"),
             ("Feeds", "Update and install feeds"),
             ("Images-download", "Download new images"),
-            ("Images-backup", "Enjoy images updated backups "),
+            ("Images-backup", "Enjoy images updated backups"),
             ("Picons", "Install and manage channel picons"),
             ("Settings", "Try new channels and frequencies"),
             ("Skins", "Choose and apply skins"),
@@ -547,7 +548,6 @@ class EliesatPanel(Screen):
             ("Tools", "Useful tools and extras"),
             ("Tools-panel", "Explore eliesatpanel tools"),
             ("About", "About"),
-            # extras to test multiple pages
             ("Extra1", "Extra menu slot 1"),
             ("Extra2", "Extra menu slot 2"),
             ("Extra3", "Extra menu slot 3"),
@@ -557,9 +557,7 @@ class EliesatPanel(Screen):
         ]
         self["menu"].setList(self.menuList)
 
-        # Description label
-        self["description"] = Label("")
-
+        # --- Description label ---
         def updateDescription():
             current = self["menu"].getCurrent()
             if current:
@@ -567,19 +565,34 @@ class EliesatPanel(Screen):
                     self["description"].setText(current[1])
                 except Exception:
                     self["description"].setText("")
-
         self["menu"].onSelectionChanged.append(updateDescription)
         updateDescription()
 
-        # Actions
+        # --- Page counter and dots ---
+        def updatePageInfo():
+            currentPage = self["menu"].getCurrentPage()
+            totalPages = self["menu"].total_pages
+
+            # Page counter
+            self["pageinfo"].setText(f"Page {currentPage}/{totalPages}")
+
+            # Dots
+            dots = ""
+            for i in range(1, totalPages + 1):
+                dots += "● " if i == currentPage else "○ "
+            self["pagelabel"].setText(dots.strip())
+        self["menu"].onSelectionChanged.append(updatePageInfo)
+        updatePageInfo()
+
+        # --- Actions ---
         self["setupActions"] = ActionMap(
             ["OkCancelActions", "DirectionActions", "ColorActions"],
             {
                 "cancel": self.close,
-                "red": self.openIptvadder,   # 🔹 red button
-                "green": self.openCccamadder,   # 🔹 green button
-                "yellow": self.openNews,   # 🔹 yellow button
-                "blue": self.openScripts,   # 🔹 blue button
+                "red": self.openIptvadder,
+                "green": self.openCccamadder,
+                "yellow": self.openNews,
+                "blue": self.openScripts,
                 "ok": self.ok,
                 "left": self.left,
                 "right": self.right,
@@ -589,29 +602,17 @@ class EliesatPanel(Screen):
             -1,
         )
 
-    # Movement handling
-    def left(self):
-        self["menu"].left()
+    # --- Navigation ---
+    def left(self): self["menu"].left()
+    def right(self): self["menu"].right()
+    def up(self): self["menu"].up()
+    def down(self): self["menu"].down()
 
-    def right(self):
-        self["menu"].right()
-
-    def up(self):
-        self["menu"].up()
-
-    def down(self):
-        self["menu"].down()
-
-    # OK press
+    # --- OK press ---
     def ok(self):
         current = self["menu"].getCurrent()
         if current:
-            try:
-                name = current[0]
-            except Exception:
-                name = str(current)
-
-            # 🔹 Mapping menu names to their submenu classes
+            name = current[0]
             submenu_map = {
                 "Addons": Addons,
                 "Display": Display,
@@ -626,54 +627,24 @@ class EliesatPanel(Screen):
                 "Tools-panel": Toolsp,
                 "About": Abt,
             }
-
             if name in submenu_map:
-                # Open the submenu screen instead of MessageBox
                 self.session.open(submenu_map[name])
             else:
-                # Fallback for extras or undefined
-                self.session.open(
-                    MessageBox,
-                    f"{name} - Coming Soon",
-                    type=MessageBox.TYPE_INFO,
-                    timeout=5,
-                )
+                self.session.open(MessageBox, f"{name} - Coming Soon", type=MessageBox.TYPE_INFO, timeout=5)
 
-    # Red press
+    # --- Color button methods ---
     def openIptvadder(self):
-        """Open the Iptvadder submenu (triggered by red key)."""
-        try:
-            self.session.open(Iptvadder)
-        except Exception:
-            # optional: fallback MessageBox if Iptvadder cannot be opened
-            self.session.open(MessageBox, "Cannot open Iptvadder.", type=MessageBox.TYPE_ERROR, timeout=5)
-
-    # Green press
+        try: self.session.open(Iptvadder)
+        except: self.session.open(MessageBox, "Cannot open Iptvadder.", type=MessageBox.TYPE_ERROR, timeout=5)
     def openCccamadder(self):
-        """Open the Cccamadder submenu (triggered by green key)."""
-        try:
-            self.session.open(Cccamadder)
-        except Exception:
-            # optional: fallback MessageBox if Scripts cannot be opened
-            self.session.open(MessageBox, "Cannot open Cccamadder.", type=MessageBox.TYPE_ERROR, timeout=5)
-
-    # News press
+        try: self.session.open(Cccamadder)
+        except: self.session.open(MessageBox, "Cannot open Cccamadder.", type=MessageBox.TYPE_ERROR, timeout=5)
     def openNews(self):
-        """Open the News submenu (triggered by blue key)."""
-        try:
-            self.session.open(News)
-        except Exception:
-            # optional: fallback MessageBox if News cannot be opened
-            self.session.open(MessageBox, "Cannot open News.", type=MessageBox.TYPE_ERROR, timeout=5)
-
-    # Blue press
+        try: self.session.open(News)
+        except: self.session.open(MessageBox, "Cannot open News.", type=MessageBox.TYPE_ERROR, timeout=5)
     def openScripts(self):
-        """Open the Scripts submenu (triggered by blue key)."""
-        try:
-            self.session.open(Scripts)
-        except Exception:
-            # optional: fallback MessageBox if Scripts cannot be opened
-            self.session.open(MessageBox, "Cannot open Scripts.", type=MessageBox.TYPE_ERROR, timeout=5)
+        try: self.session.open(Scripts)
+        except: self.session.open(MessageBox, "Cannot open Scripts.", type=MessageBox.TYPE_ERROR, timeout=5)
 
     # ---------------- UPDATE HANDLING ----------------
     def update_me(self):
