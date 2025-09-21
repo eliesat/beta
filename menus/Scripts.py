@@ -104,6 +104,24 @@ class Scripts(Screen):
         <eLabel position="1840,130" size="80,870" zPosition="10"
             backgroundColor="#000000" />
 
+        <!-- 🔹 Date -->
+        <widget source="global.CurrentTime" render="Label"
+            position="1350,180" size="500,35" zPosition="12"
+            font="Bold;32" halign="center" valign="center"
+            foregroundColor="yellow" backgroundColor="#000000"
+            transparent="1">
+            <convert type="ClockToText">Format %A %d %B</convert>
+        </widget>
+
+        <!-- 🔹 Clock -->
+        <widget source="global.CurrentTime" render="Label"
+            position="1350,220" size="500,35" zPosition="12"
+            font="Bold;32" halign="center" valign="center"
+            foregroundColor="yellow" backgroundColor="#000000"
+            transparent="1">
+            <convert type="ClockToText">Format %H:%M:%S</convert>
+        </widget>
+
         <!-- 🔹 System info -->
         <widget name="image_name" position="1470,420" size="500,35" zPosition="12"
             font="Bold;32" halign="left" valign="center"
