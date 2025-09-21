@@ -145,10 +145,14 @@ class Scripts(Screen):
         <!-- 🔹 Panel Version LEFT / RIGHT -->
         <widget name="left_bar" position="20,160" size="60,760" zPosition="20"
             font="Regular;26" halign="center" valign="top"
-            foregroundColor="yellow" transparent="1" noWrap="1" />
+             noWrap="1"
+            foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
         <widget name="right_bar" position="1850,160" size="60,760" zPosition="20"
             font="Regular;26" halign="center" valign="top"
-            foregroundColor="yellow" transparent="1" noWrap="1" />
+             noWrap="1"
+            foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
     </screen>
     """
 
