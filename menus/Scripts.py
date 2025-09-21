@@ -39,8 +39,8 @@ class Scripts(Screen):
 
         <!-- 🔹 Selected script bar at top -->
         <widget name="script_name"
-            position="48,120" size="1240,50" zPosition="12"
-            font="Bold;40" halign="center" valign="center"
+            position="48,880" size="1240,50" zPosition="12"
+            font="Bold;36" halign="center" valign="center"
             foregroundColor="orange" backgroundColor="#000000"
             transparent="1" />
 
@@ -52,7 +52,7 @@ class Scripts(Screen):
 
         <!-- 🔹 Info text -->
         <eLabel text="Select and press OK to execute"
-            position="320,880" size="700,50" zPosition="1"
+            position="320,125" size="700,50" zPosition="1"
             font="Bold;36" halign="center"
             backgroundColor="#000000" foregroundColor="orange"
             transparent="0" />
