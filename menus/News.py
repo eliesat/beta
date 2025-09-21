@@ -79,7 +79,7 @@ class News(Screen):
 
         <!-- 🔹 Page indicator -->
         <widget name="page_info"
-            position="1650,940" size="600,60" zPosition="12"
+            position="1700,940" size="600,60" zPosition="12"
             font="Bold;32" halign="left" valign="center"
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="1" />
@@ -148,13 +148,16 @@ class News(Screen):
         <widget name="left_bar"
             position="20,160" size="60,760" zPosition="20"
             font="Regular;26" halign="center" valign="top"
-            foregroundColor="yellow" transparent="1" noWrap="1" />
-
+             noWrap="1"
+            foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
         <!-- 🔹 Custom text on RIGHT bar -->
         <widget name="right_bar"
             position="1850,160" size="60,760" zPosition="20"
             font="Regular;26" halign="center" valign="top"
-            foregroundColor="yellow" transparent="1" noWrap="1" />
+             noWrap="1"
+            foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
     </screen>
     """
 
