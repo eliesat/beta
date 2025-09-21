@@ -79,7 +79,7 @@ class News(Screen):
 
         <!-- 🔹 Page indicator -->
         <widget name="page_info"
-            position="1700,940" size="600,60" zPosition="12"
+            position="1650,940" size="600,60" zPosition="12"
             font="Bold;28" halign="left" valign="center"
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="1" />

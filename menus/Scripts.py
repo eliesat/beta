@@ -7,12 +7,10 @@ from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
     get_storage_info,
     get_ram_info,
 )
-
 import os
 from Screens.Screen import Screen
 from Screens.Console import Console
 from Screens.MessageBox import MessageBox
-
 from Components.ActionMap import ActionMap
 from Components.Label import Label
 from Components.MenuList import MenuList
@@ -20,11 +18,8 @@ from Tools.Directories import pathExists
 from Plugins.Extensions.ElieSatPanel.__init__ import Version
 
 scriptpath = "/usr/script/"
-
-# Ensure the script folder exists
 if not os.path.exists(scriptpath):
     os.makedirs(scriptpath, exist_ok=True)
-
 
 class Scripts(Screen):
     skin = """
@@ -32,7 +27,7 @@ class Scripts(Screen):
         <ePixmap position="0,0" zPosition="-1" size="1920,1080"
             pixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/background/panel_bg.png"/>
 
-                <!-- 🔹 Script list -->
+        <!-- 🔹 Script list -->
         <widget name="list" position="48,200" size="1240,680"
             font="Bold;32"
             halign="center" valign="center"
@@ -42,14 +37,20 @@ class Scripts(Screen):
             selectionPixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/icon/selection.png"
             transparent="1" scrollbarMode="showOnDemand" />
 
-       <!-- 🔹 Selected script bar at top -->
+        <!-- 🔹 Selected script bar at top -->
         <widget name="script_name"
             position="48,120" size="1240,50" zPosition="12"
             font="Bold;40" halign="center" valign="center"
             foregroundColor="orange" backgroundColor="#000000"
             transparent="1" />
 
-        <!-- 🔹 Info: Press OK -->
+        <!-- 🔹 Page indicator -->
+        <widget name="page_info" position="1650,940" size="200,60" zPosition="12"
+            font="Bold;32" halign="center" valign="center"
+            foregroundColor="yellow" backgroundColor="#000000"
+            transparent="1" />
+
+        <!-- 🔹 Info text -->
         <eLabel text="Select and press OK to execute"
             position="320,880" size="700,50" zPosition="1"
             font="Bold;36" halign="center"
@@ -66,10 +67,6 @@ class Scripts(Screen):
             font="Bold;32" halign="left" valign="center" noWrap="1"
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="0" />
-
-        <!-- 🔹 Selected script bar (attached at top of list) -->
-        <eLabel position="48,120" size="1240,50" zPosition="11"
-            backgroundColor="#000000" transparent="0" />
 
         <!-- 🔹 Bottom color button bars + labels -->
         <eLabel position="0,1075" size="480,5" zPosition="2" backgroundColor="red" />
@@ -107,76 +104,33 @@ class Scripts(Screen):
         <eLabel position="1840,130" size="80,870" zPosition="10"
             backgroundColor="#000000" />
 
-                       <!-- 🔹 Date -->
-        <widget source="global.CurrentTime" render="Label"
-            position="1350,180" size="500,35" zPosition="12"
-            font="Bold;32" halign="center" valign="center"
-            foregroundColor="yellow" backgroundColor="#000000"
-            transparent="1">
-            <convert type="ClockToText">Format %A %d %B</convert>
-        </widget>
-
-        <!-- 🔹 Clock -->
-        <widget source="global.CurrentTime" render="Label"
-            position="1350,220" size="500,35" zPosition="12"
-            font="Bold;32" halign="center" valign="center"
-            foregroundColor="yellow" backgroundColor="#000000"
-            transparent="1">
-            <convert type="ClockToText">Format %H:%M:%S</convert>
-        </widget>
-
-        <!-- 🔹 Image name -->
-        <widget name="image_name"
-            position="1470,420" size="500,35" zPosition="12"
+        <!-- 🔹 System info -->
+        <widget name="image_name" position="1470,420" size="500,35" zPosition="12"
             font="Bold;32" halign="left" valign="center"
-            foregroundColor="yellow" backgroundColor="#000000"
-            transparent="1" />
-
-        <!-- 🔹 Python version -->
-        <widget name="python_ver"
-            position="1470,460" size="500,35" zPosition="12"
+            foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
+        <widget name="python_ver" position="1470,460" size="500,35" zPosition="12"
             font="Bold;32" halign="left" valign="center"
-            foregroundColor="yellow" backgroundColor="#000000"
-            transparent="1" />
-
-        <!-- 🔹 Local IP -->
-        <widget name="local_ip"
-            position="1470,500" size="500,35" zPosition="12"
+            foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
+        <widget name="local_ip" position="1470,500" size="500,35" zPosition="12"
             font="Bold;32" halign="left" valign="center"
-            foregroundColor="yellow" backgroundColor="#000000"
-            transparent="1" />
-
-        <!-- 🔹 Storage Info -->
-        <widget name="StorageInfo"
-            position="1470,540" size="500,35" zPosition="12"
+            foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
+        <widget name="StorageInfo" position="1470,540" size="500,35" zPosition="12"
             font="Bold;32" halign="left" valign="center"
-            foregroundColor="yellow" backgroundColor="#000000"
-            transparent="1" />
-
-        <!-- 🔹 Ram Info -->
-        <widget name="RAMInfo"
-            position="1470,580" size="500,35" zPosition="12"
+            foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
+        <widget name="RAMInfo" position="1470,580" size="500,35" zPosition="12"
             font="Bold;32" halign="left" valign="center"
-            foregroundColor="yellow" backgroundColor="#000000"
-            transparent="1" />
-
-        <!-- 🔹 Net Status -->
-        <widget name="net_status"
-            position="1470,620" size="500,35" zPosition="12"
+            foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
+        <widget name="net_status" position="1470,620" size="500,35" zPosition="12"
             font="Bold;32" halign="left" valign="center"
-            foregroundColor="yellow" backgroundColor="#000000"
-            transparent="1" />
+            foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
 
-    <!-- 🔹 Panel Version on LEFT bar -->
-    <widget name="left_bar"
-        position="20,160" size="60,760" zPosition="20"
-        font="Regular;26" halign="center" valign="top"
-        foregroundColor="yellow" transparent="1" noWrap="1" />
-    <!-- 🔹 Custom text on RIGHT bar -->
-    <widget name="right_bar"
-        position="1850,160" size="60,760" zPosition="20"
-        font="Regular;26" halign="center" valign="top"
-        foregroundColor="yellow" transparent="1" noWrap="1" />
+        <!-- 🔹 Panel Version LEFT / RIGHT -->
+        <widget name="left_bar" position="20,160" size="60,760" zPosition="20"
+            font="Regular;26" halign="center" valign="top"
+            foregroundColor="yellow" transparent="1" noWrap="1" />
+        <widget name="right_bar" position="1850,160" size="60,760" zPosition="20"
+            font="Regular;26" halign="center" valign="top"
+            foregroundColor="yellow" transparent="1" noWrap="1" />
     </screen>
     """
 
@@ -184,12 +138,14 @@ class Scripts(Screen):
         Screen.__init__(self, session)
         self.session = session
         self.script = ""
-        self.name = ""
-        self.setTitle(_("Script Executer"))
-        vertical_left = "\n".join(list("Version " + Version))
-        vertical_right = "\n".join(list("By ElieSat"))
-        self["left_bar"] = Label(vertical_left)
-        self["right_bar"] = Label(vertical_right)
+        self.items_per_page = 10
+        self.current_page = 1
+        self.total_pages = 1
+        self.setTitle(_("Scripts Manager"))
+
+        # Vertical bars
+        self["left_bar"] = Label("\n".join(list("Version " + Version)))
+        self["right_bar"] = Label("\n".join(list("By ElieSat")))
 
         # System info
         self["image_name"] = Label("Image: " + get_image_name())
@@ -200,11 +156,12 @@ class Scripts(Screen):
         self["net_status"] = Label("Net: " + check_internet())
 
         # Buttons
-        self["red"] = Label(_("Remove"))
-        self["green"] = Label(_("Update"))
-        self["yellow"] = Label(_("Background"))
-        self["blue"] = Label(_("Restart"))
+        self["red"] = Label(_("Remove List"))
+        self["green"] = Label(_("Update List"))
+        self["yellow"] = Label(_("Background run"))
+        self["blue"] = Label(_("Restart Enigma2"))
         self["script_name"] = Label("")
+        self["page_info"] = Label("Page 1/1")
 
         # Actions
         self["actions"] = ActionMap(
@@ -215,79 +172,77 @@ class Scripts(Screen):
                 "yellow": self.bgrun,
                 "red": self.remove,
                 "blue": self.restart,
+                "up": self.moveUp,
+                "down": self.moveDown,
+                "left": self.pageLeft,
+                "right": self.pageRight,
                 "cancel": self.close,
             },
             -1,
         )
 
-        # Load scripts at start
-        self.refreshList()
+        # Load scripts
+        self.loadScripts()
 
-    def refreshList(self):
-        items = []
+    def loadScripts(self):
+        self.scripts = []
         if pathExists(scriptpath):
-            items = [x for x in os.listdir(scriptpath) if x.endswith(".sh") or x.endswith(".py")]
-        items.sort()
-        self["list"] = MenuList(items)
+            self.scripts = [x for x in os.listdir(scriptpath) if x.endswith(".sh") or x.endswith(".py")]
+        self.scripts.sort()
+        self["list"] = MenuList(self.scripts)
+        self["list"].onSelectionChanged.append(self.updateSelection)
+        self.updateSelection()
 
-        try:
-            self["list"].onSelectionChanged.append(self.updateScriptName)
-        except Exception:
-            pass
+    def updateSelection(self):
+        idx = self["list"].getCurrentIndex()
+        total = len(self.scripts)
+        self["script_name"].setText(self.scripts[idx] if self.scripts else _("No scripts found"))
+        self.total_pages = max(1, (total + self.items_per_page - 1) // self.items_per_page)
+        self.current_page = (idx // self.items_per_page) + 1
+        self["page_info"].setText("Page %d/%d" % (self.current_page, self.total_pages))
 
-        if items:
-            self["script_name"].setText(items[0].replace("_", " "))
-        else:
-            self["script_name"].setText(_("No scripts found"))
+    def moveUp(self):
+        self["list"].moveUp()
+        self.updateSelection()
 
-    def updateScriptName(self):
-        try:
-            current = self["list"].getCurrent()
-        except Exception:
-            current = None
+    def moveDown(self):
+        self["list"].moveDown()
+        self.updateSelection()
 
-        if current:
-            self["script_name"].setText(current.replace("_", " "))
-        else:
-            self["script_name"].setText("")
+    def pageLeft(self):
+        idx = max(0, self["list"].getCurrentIndex() - self.items_per_page)
+        self["list"].setIndex(idx)
+        self.updateSelection()
+
+    def pageRight(self):
+        idx = min(len(self.scripts)-1, self["list"].getCurrentIndex() + self.items_per_page)
+        self["list"].setIndex(idx)
+        self.updateSelection()
 
     def run(self):
-        self.script = self["list"].getCurrent()
-        if self.script:
-            full_path = os.path.join(scriptpath, self.script)
+        script = self["list"].getCurrent()
+        if script:
+            full_path = os.path.join(scriptpath, script)
             if full_path.endswith(".sh"):
                 os.chmod(full_path, 0o755)
                 cmd = full_path
             else:
                 cmd = "python " + full_path
-            self.session.open(Console, self.script.replace("_", " "), cmdlist=[cmd])
-            self.refreshList()
+            self.session.open(Console, script, cmdlist=[cmd])
+            self.loadScripts()
 
     def restart(self):
-        self.session.open(
-            Console,
-            _("Restarting Enigma2..."),
-            ["[ command -v dpkg &> /dev/null ] && systemctl restart enigma2 || killall -9 enigma2"],
-        )
+        self.session.open(Console, _("Restarting Enigma2..."), ["killall -9 enigma2"])
 
     def bgrun(self):
-        self.refreshList()
-        self.session.open(MessageBox, _("Background Run executed"), MessageBox.TYPE_INFO, timeout=4)
+        self.session.open(MessageBox, _("Background run executed"), MessageBox.TYPE_INFO, timeout=4)
 
     def remove(self):
         os.system("rm -rf " + scriptpath + "*")
-        self.refreshList()
-        self.session.open(
-            MessageBox,
-            _("All scripts removed. Press Green to reinstall."),
-            MessageBox.TYPE_INFO,
-            timeout=4,
-        )
+        self.loadScripts()
+        self.session.open(MessageBox, _("All scripts removed. Press Green to reinstall."), MessageBox.TYPE_INFO, timeout=4)
 
     def update(self):
-        self.session.open(
-            Console,
-            _("Installing scripts..."),
-            ["wget --no-check-certificate https://raw.githubusercontent.com/eliesat/scripts/main/installer.sh -qO - | /bin/sh"],
-        )
-        self.refreshList()
+        self.session.open(Console, _("Installing scripts..."), ["wget --no-check-certificate https://raw.githubusercontent.com/eliesat/scripts/main/installer.sh -qO - | /bin/sh"])
+        self.loadScripts()
+
