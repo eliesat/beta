@@ -5,9 +5,8 @@ clear >/dev/null 2>&1
 #configuration
 ###########################################
 plugin=beta-main
-version='3.12'
-changelog='1.21.09.2025
-hd skins'
+version='3.13'
+changelog='1.21.09.2025 /skin hd - scripts screen'
 url=https://github.com/eliesat/beta/archive/main.tar.gz
 package=/tmp/$plugin.tar.gz
 rm -rf /tmp/$plugin.tar.gz >/dev/null 2>&1
