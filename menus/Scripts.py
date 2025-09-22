@@ -1,4 +1,17 @@
 # -*- coding: utf-8 -*-
+import os
+from os import chmod
+from os.path import exists, join
+from random import choice
+from requests import get, exceptions
+
+from Screens.Screen import Screen
+from Screens.Console import Console
+from Screens.MessageBox import MessageBox
+from Components.ActionMap import ActionMap
+from Components.Label import Label
+from Components.MenuList import MenuList
+from enigma import getDesktop
 from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
     get_local_ip,
     check_internet,
@@ -7,38 +20,32 @@ from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
     get_storage_info,
     get_ram_info,
 )
-import os
-from Screens.Screen import Screen
-from Screens.Console import Console
-from Screens.MessageBox import MessageBox
-from Components.ActionMap import ActionMap
-from Components.Label import Label
-from Components.MenuList import MenuList
-from Tools.Directories import pathExists
 from Plugins.Extensions.ElieSatPanel.__init__ import Version
-from Tools.LoadPixmap import LoadPixmap
-from enigma import eSize, getDesktop
 
 scriptpath = "/usr/script/"
 if not os.path.exists(scriptpath):
     os.makedirs(scriptpath, exist_ok=True)
 
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/93.0.4577.82 Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_4_2 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/110.0"
+]
+
+SCRIPT_TARBALL_URL = "https://raw.githubusercontent.com/eliesat/scripts/main/installer.tar"
+
+
 class Scripts(Screen):
     def __init__(self, session):
-        # Detect resolution and load appropriate skin
+        # Load correct skin
         width, height = getDesktop(0).size().width(), getDesktop(0).size().height()
-        if width >= 1920:
-            skin_file = "/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/skin/scripts_fhd.xml"
-        else:
-            skin_file = "/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/skin/scripts_hd.xml"
-
-        # Load skin from XML
+        skin_file = "/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/skin/scripts_fhd.xml" \
+            if width >= 1920 else "/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/skin/scripts_hd.xml"
         with open(skin_file, "r") as f:
             self.skin = f.read()
 
         Screen.__init__(self, session)
         self.session = session
-        self.script = ""
         self.items_per_page = 10
         self.current_page = 1
         self.total_pages = 1
@@ -85,9 +92,12 @@ class Scripts(Screen):
         # Load scripts
         self.loadScripts()
 
+    # -------------------------
+    # Scripts list
+    # -------------------------
     def loadScripts(self):
         self.scripts = []
-        if pathExists(scriptpath):
+        if os.path.exists(scriptpath):
             self.scripts = [x for x in os.listdir(scriptpath) if x.endswith(".sh") or x.endswith(".py")]
         self.scripts.sort()
         self["list"] = MenuList(self.scripts)
@@ -116,34 +126,82 @@ class Scripts(Screen):
         self.updateSelection()
 
     def pageRight(self):
-        idx = min(len(self.scripts)-1, self["list"].getCurrentIndex() + self.items_per_page)
+        idx = min(len(self.scripts) - 1, self["list"].getCurrentIndex() + self.items_per_page)
         self["list"].setIndex(idx)
         self.updateSelection()
 
+    # -------------------------
+    # Script execution via Console
+    # -------------------------
     def run(self):
         script = self["list"].getCurrent()
-        if script:
-            full_path = os.path.join(scriptpath, script)
-            if full_path.endswith(".sh"):
-                os.chmod(full_path, 0o755)
-                cmd = full_path
-            else:
-                cmd = "python " + full_path
-            self.session.open(Console, script, cmdlist=[cmd])
-            self.loadScripts()
+        if not script:
+            self.session.open(MessageBox, _("No script selected!"), MessageBox.TYPE_INFO)
+            return
 
+        full_path = os.path.join(scriptpath, script)
+        if not os.path.exists(full_path):
+            self.session.open(MessageBox, _("Script not found!"), MessageBox.TYPE_ERROR)
+            return
+
+        if full_path.endswith(".sh"):
+            chmod(full_path, 0o755)
+            cmd = full_path
+        else:
+            cmd = "python " + full_path
+
+        # Open Console screen
+        self.session.open(Console, _("Executing: {}").format(script), cmdlist=[cmd])
+
+    # -------------------------
+    # Other actions
+    # -------------------------
     def restart(self):
         self.session.open(Console, _("Restarting Enigma2..."), ["killall -9 enigma2"])
 
     def bgrun(self):
-        self.session.open(MessageBox, _("Background run executed"), MessageBox.TYPE_INFO, timeout=4)
+        # Run in background with Console screen
+        script = self["list"].getCurrent()
+        if not script:
+            self.session.open(MessageBox, _("No script selected!"), MessageBox.TYPE_INFO)
+            return
+
+        full_path = os.path.join(scriptpath, script)
+        if full_path.endswith(".sh"):
+            chmod(full_path, 0o755)
+            cmd = full_path
+        else:
+            cmd = "python " + full_path
+
+        self.session.open(Console, _("Background Script: {}").format(script), cmdlist=[cmd])
 
     def remove(self):
-        os.system("rm -rf " + scriptpath + "*")
-        self.loadScripts()
-        self.session.open(MessageBox, _("All scripts removed. Press Green to reinstall."), MessageBox.TYPE_INFO, timeout=4)
+        self.session.openWithCallback(self.xremove, MessageBox, _('Remove all scripts?'), MessageBox.TYPE_YESNO)
+
+    def xremove(self, answer=False):
+        if answer:
+            for f in os.listdir(scriptpath):
+                os.remove(os.path.join(scriptpath, f))
+            self.loadScripts()
+            self.session.open(MessageBox, _('Scripts removed!'), MessageBox.TYPE_INFO)
 
     def update(self):
-        self.session.open(Console, _("Installing scripts..."), ["wget --no-check-certificate https://raw.githubusercontent.com/eliesat/scripts/main/installer.sh -qO - | /bin/sh"])
-        self.loadScripts()
+        dest = '/tmp/scripts.tar'
+        try:
+            headers = {"User-Agent": choice(USER_AGENTS)}
+            response = get(SCRIPT_TARBALL_URL, headers=headers, timeout=10)
+            response.raise_for_status()
+            with open(dest, 'wb') as f:
+                f.write(response.content)
+            os.system("tar -xf {} -C '{}'".format(dest, scriptpath))
+            os.remove(dest)
+            for script in os.listdir(scriptpath):
+                if script.endswith(".sh"):
+                    os.chmod(os.path.join(scriptpath, script), 0o755)
+            self.loadScripts()
+            self.session.open(MessageBox, _("Scripts updated successfully!"), MessageBox.TYPE_INFO)
+        except exceptions.RequestException as e:
+            self.session.open(MessageBox, _("Network error: %s") % str(e), MessageBox.TYPE_ERROR)
+        except Exception as e:
+            self.session.open(MessageBox, str(e), MessageBox.TYPE_ERROR)
 
