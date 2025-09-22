@@ -44,7 +44,7 @@ class Cccamadder(Screen, ConfigListScreen):
         <eLabel position="960,1075" size="480,5" zPosition="2" backgroundColor="yellow" />
         <widget name="yellow" position="960,1000" size="480,75" zPosition="2"
             font="Bold;32" halign="center" valign="center"
-            text="Send" foregroundColor="yellow" backgroundColor="#000000" transparent="0" />
+            text="Print" foregroundColor="yellow" backgroundColor="#000000" transparent="0" />
 
         <eLabel position="1440,1075" size="480,5" zPosition="2" backgroundColor="blue" />
         <widget name="blue" position="1440,1000" size="480,75" zPosition="2"
@@ -120,7 +120,7 @@ class Cccamadder(Screen, ConfigListScreen):
         self.passw = ConfigText(default="ServerEagle")
 
         # Additional CCcam parameters
-        self.inactivitytimeout = ConfigInteger(default=30, limits=(1, 9999))
+        self.inactivitytimeout = ConfigInteger(default=30, limits=(1, 99))
         self.group = ConfigInteger(default=1, limits=(0, 99))
         self.disablecrccws = ConfigSelection(default="1", choices=[("0", "No"), ("1", "Yes")])
         self.cccamversion = ConfigText(default="2.0.11")
@@ -154,7 +154,7 @@ class Cccamadder(Screen, ConfigListScreen):
         # Buttons
         self["red"] = Label("Save")
         self["green"] = Label("Close")
-        self["yellow"] = Label("Send")
+        self["yellow"] = Label("Print")
         self["blue"] = Label("Report")
 
         # Actions
@@ -163,7 +163,7 @@ class Cccamadder(Screen, ConfigListScreen):
             {
                 "red": self.save_cccam,
                 "green": self.close_screen,
-                "yellow": self.send_cccam,
+                "yellow": self.print_fields_to_tmp,  # smart print with duplicate check
                 "blue": self.report_cccam,
                 "cancel": self.close_screen,
             },
@@ -174,9 +174,11 @@ class Cccamadder(Screen, ConfigListScreen):
         self.close()
 
     def save_cccam(self):
-        line = f"{self.label.value} {self.status.value} {self.protocol.value} {self.host.value} {self.port.value} {self.user.value} {self.passw.value} " \
-               f"inactivitytimeout={self.inactivitytimeout.value} group={self.group.value} disablecrccws={self.disablecrccws.value} " \
-               f"cccamversion={self.cccamversion.value} cccwantemu={self.cccwantemu.value} ccckeepalive={self.ccckeepalive.value} audisabled={self.audisabled.value}\n"
+        line = (
+            f"{self.label.value} {self.status.value} {self.protocol.value} {self.host.value} {self.port.value} {self.user.value} {self.passw.value} "
+            f"inactivitytimeout={self.inactivitytimeout.value} group={self.group.value} disablecrccws={self.disablecrccws.value} "
+            f"cccamversion={self.cccamversion.value} cccwantemu={self.cccwantemu.value} ccckeepalive={self.ccckeepalive.value} audisabled={self.audisabled.value}\n"
+        )
         path = "/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/sus/cccam.txt"
         with open(path, "a") as f:
             f.write(line)
@@ -194,4 +196,53 @@ class Cccamadder(Screen, ConfigListScreen):
             self.session.open(MessageBox, content, MessageBox.TYPE_INFO)
         else:
             self.session.open(MessageBox, "Report file not found!", MessageBox.TYPE_ERROR)
+
+    def print_fields_to_tmp(self):
+        tmp_path = "/tmp/tmpfile"
+        new_device = f"{self.host.value},{self.port.value}"
+        new_user = self.user.value
+        new_pass = self.passw.value
+
+        # Build new reader entry
+        new_entry = (
+            "[reader]\n"
+            f"label                         = {self.label.value}\n"
+            f"status                        = {self.status.value}\n"
+            f"protocol                      = {self.protocol.value}\n"
+            f"device                        = {new_device}\n"
+            f"user                          = {new_user}\n"
+            f"password                      = {new_pass}\n"
+            f"inactivitytimeout             = {self.inactivitytimeout.value}\n"
+            f"group                         = {self.group.value}\n"
+            f"disablecrccws                 = {self.disablecrccws.value}\n"
+            f"cccversion                    = {self.cccamversion.value}\n"
+            f"cccwantemu                    = {self.cccwantemu.value}\n"
+            f"ccckeepalive                  = {self.ccckeepalive.value}\n"
+            f"audisabled                    = {self.audisabled.value}\n"
+        )
+
+        # Check if the server already exists (host, port, user, password)
+        exists = False
+        if os.path.exists(tmp_path):
+            with open(tmp_path, "r") as f:
+                lines = f.readlines()
+                for i, line in enumerate(lines):
+                    if line.startswith("device") and line.strip().endswith(new_device):
+                        # Check the next two lines for matching user and password
+                        if i + 1 < len(lines) and i + 2 < len(lines):
+                            user_line = lines[i + 1].strip()
+                            pass_line = lines[i + 2].strip()
+                            if user_line == f"user                          = {new_user}" and pass_line == f"password                      = {new_pass}":
+                                exists = True
+                                break
+
+        if exists:
+            self.session.open(MessageBox, "Server already exists!", MessageBox.TYPE_INFO, timeout=3)
+        else:
+            # Append new entry while keeping existing ones
+            with open(tmp_path, "a") as f:
+                if os.path.getsize(tmp_path) > 0:
+                    f.write("\n")  # blank line between entries
+                f.write(new_entry)
+            self.session.open(MessageBox, "New server added to /tmp/tmpfile", MessageBox.TYPE_INFO, timeout=3)
 
