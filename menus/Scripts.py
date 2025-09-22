@@ -1,17 +1,15 @@
 # -*- coding: utf-8 -*-
 import os
-from os import chmod
+from os import chmod, system as os_system
 from os.path import exists, join
-from random import choice
-from requests import get, exceptions
 
 from Screens.Screen import Screen
 from Screens.MessageBox import MessageBox
 from Components.ActionMap import ActionMap
 from Components.Label import Label
 from Components.MenuList import MenuList
-from Components.ScrollLabel import ScrollLabel
 from enigma import eConsoleAppContainer, getDesktop
+
 from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
     get_local_ip,
     check_internet,
@@ -22,15 +20,10 @@ from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
 )
 from Plugins.Extensions.ElieSatPanel.__init__ import Version
 from Plugins.Extensions.ElieSatPanel.menus.Console import Console
+
 scriptpath = "/usr/script/"
 if not os.path.exists(scriptpath):
     os.makedirs(scriptpath, exist_ok=True)
-
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/93.0.4577.82 Safari/537.36",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_4_2 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/110.0"
-]
 
 class Scripts(Screen):
     def __init__(self, session):
@@ -68,17 +61,13 @@ class Scripts(Screen):
         self["script_name"] = Label("")
         self["page_info"] = Label("Page 1/1")
 
-        # Console output area
-        self["console"] = ScrollLabel("")
-        self.container = None
-
         # Actions
         self["actions"] = ActionMap(
             ["OkCancelActions", "ColorActions"],
             {
-                "ok": self.run,        # run with console
-                "green": self.update,  # green keeps original function
-                "yellow": self.bgrun,  # run in background
+                "ok": self.run,        # keep original console behavior
+                "green": self.update,
+                "yellow": self.bgrun,  # yellow runs like OpenScript
                 "red": self.remove,
                 "blue": self.restart,
                 "up": self.moveUp,
@@ -132,7 +121,7 @@ class Scripts(Screen):
         self.updateSelection()
 
     # -------------------------
-    # Script execution with embedded console (OK button)
+    # OK button: run script in Console (original behavior)
     # -------------------------
     def run(self):
         script = self["list"].getCurrent()
@@ -140,8 +129,8 @@ class Scripts(Screen):
             self.session.open(MessageBox, _("No script selected!"), MessageBox.TYPE_INFO)
             return
 
-        full_path = os.path.join(scriptpath, script)
-        if not os.path.exists(full_path):
+        full_path = join(scriptpath, script)
+        if not exists(full_path):
             self.session.open(MessageBox, _("Script not found!"), MessageBox.TYPE_ERROR)
             return
 
@@ -151,34 +140,11 @@ class Scripts(Screen):
         else:
             cmd = "python " + full_path
 
-        # Clear console
-        self["console"].setText("")
-        self.container = eConsoleAppContainer()
-        try:
-            self.container.dataAvail.append(self.logData)
-        except:
-            self.container.dataAvail_conn = self.container.dataAvail.connect(self.logData)
-        try:
-            self.container.appClosed.append(self.finishExecution)
-        except:
-            self.container.appClosed_conn = self.container.appClosed.connect(self.finishExecution)
-
-        self.container.execute(cmd)
-
-    def logData(self, data):
-        text = data.decode()
-        old = self["console"].getText()
-        new_text = old + text
-        self["console"].setText(new_text)
-
-    def finishExecution(self, retval):
-        if retval == 0:
-            self.session.open(MessageBox, _("Execution completed!"), MessageBox.TYPE_INFO)
-        else:
-            self.session.open(MessageBox, _("Error while running (Code: %d)") % retval, MessageBox.TYPE_ERROR)
+        # Open Console screen
+        self.session.open(Console, _("Executing: %s") % script, [cmd])
 
     # -------------------------
-    # Yellow button: run in background silently
+    # Yellow button: run like OpenScript
     # -------------------------
     def bgrun(self):
         script = self["list"].getCurrent()
@@ -186,19 +152,57 @@ class Scripts(Screen):
             self.session.open(MessageBox, _("No script selected!"), MessageBox.TYPE_INFO)
             return
 
-        full_path = os.path.join(scriptpath, script)
+        full_path = join(scriptpath, script)
         if not exists(full_path):
             self.session.open(MessageBox, _("Script not found!"), MessageBox.TYPE_ERROR)
             return
 
         if full_path.endswith(".sh"):
             chmod(full_path, 0o755)
-            cmd = "{} &".format(full_path)
+            cmd = "sh {}".format(full_path)
         else:
-            cmd = "python {} &".format(full_path)
+            cmd = "python {}".format(full_path)
 
-        os.system(cmd)
-        self.session.open(MessageBox, _("Script is running in background!"), MessageBox.TYPE_INFO, timeout=3)
+        self.container = eConsoleAppContainer()
+        self.log_file = "/tmp/scripts_yellow.log"
+        open(self.log_file, "w").close()
+
+        try:
+            self.container.dataAvail.append(self.logData)
+        except:
+            self.container.dataAvail_conn = self.container.dataAvail.connect(self.logData)
+
+        try:
+            self.container.appClosed.append(self.finishExecution)
+        except:
+            self.container.appClosed_conn = self.container.appClosed.connect(self.finishExecution)
+
+        self.container.execute(cmd)
+        self.session.open(MessageBox, _("Script is running... check log after finish!"), MessageBox.TYPE_INFO, timeout=3)
+
+    # -------------------------
+    # Logging and finish
+    # -------------------------
+    def logData(self, data):
+        with open(self.log_file, "a") as f:
+            f.write(data.decode())
+            f.flush()
+
+    def finishExecution(self, retval):
+        if retval == 0:
+            self.session.openWithCallback(self.openLog, MessageBox, _("Execution completed!"), MessageBox.TYPE_INFO)
+        else:
+            self.session.openWithCallback(self.openLog, MessageBox, _("Error while running (Code: %d)") % retval, MessageBox.TYPE_ERROR)
+
+    def openLog(self, callback=None):
+        if exists(self.log_file):
+            try:
+                from .File_Commander import File_Commander
+                self.session.open(File_Commander, self.log_file)
+            except Exception as e:
+                self.session.open(MessageBox, _("Error opening log viewer: %s") % str(e), MessageBox.TYPE_ERROR)
+        else:
+            self.session.open(MessageBox, _("Log file not found!"), MessageBox.TYPE_WARNING)
 
     # -------------------------
     # Other actions
@@ -210,10 +214,13 @@ class Scripts(Screen):
         self.session.openWithCallback(self.xremove, MessageBox, _('Remove all scripts?'), MessageBox.TYPE_YESNO)
 
     def xremove(self, answer=False):
-      os.system('rm -rf /usr/script/*')
-      self.session.open(MessageBox,(_("Remove of scripts lists is done , press the green button to reinstall")), MessageBox.TYPE_INFO, timeout = 4 )
+        if answer:
+            os_system('rm -rf /usr/script/*')
+            self.loadScripts()
+            self.session.open(MessageBox, _('Scripts successfully removed!'), MessageBox.TYPE_INFO)
 
     def update(self):
-      self.session.open(Console, _("Installing scripts please wait..."), [
+        self.session.open(Console, _("Installing scripts please wait..."), [
             "wget --no-check-certificate https://raw.githubusercontent.com/eliesat/scripts/main/installer.sh -qO - | /bin/sh"
         ])
+
