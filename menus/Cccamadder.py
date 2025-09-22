@@ -8,10 +8,10 @@ from Screens.MessageBox import MessageBox
 from Components.ActionMap import ActionMap
 from Components.Label import Label
 from Components.ConfigList import ConfigListScreen
-from Components.config import ConfigText, ConfigSelection, getConfigListEntry, ConfigInteger
+from Components.config import ConfigText, ConfigSelection, ConfigInteger, getConfigListEntry
 from Tools.Directories import resolveFilename, SCOPE_PLUGINS, fileExists
-from Plugins.Extensions.ElieSatPanel.__init__ import Version
 import os
+
 
 class Cccamadder(Screen, ConfigListScreen):
     skin = """
@@ -89,10 +89,12 @@ class Cccamadder(Screen, ConfigListScreen):
             backgroundColor="#000000" transparent="1" />
 
         <!-- Config list -->
-        <widget name="config" position="150,300" size="1100,400"
+        <widget name="config" position="150,180" size="1100,900"
             font="Bold;32" itemHeight="50"
             foregroundColor="yellow"
-            transparent="1" scrollbarMode="showOnDemand"/>
+            transparent="1" scrollbarMode="showOnDemand"
+            enableWrapAround="1"
+            valign="center"/>
     </screen>
     """
 
@@ -109,22 +111,45 @@ class Cccamadder(Screen, ConfigListScreen):
         self["net_status"] = Label("Net: " + check_internet())
 
         # Config fields
-        self.protocol = ConfigSelection(choices=[("cccam", "CCcam"), ("newcamd", "NewCamd")])
         self.label = ConfigText(default="Server-Eagle")
+        self.status = ConfigSelection(default="enabled", choices=[("enabled", "Enabled"), ("disabled", "Disabled")])
+        self.protocol = ConfigSelection(choices=[("cccam", "CCcam"), ("newcamd", "NewCamd")])
         self.host = ConfigText(default="tv8k.cc")
         self.port = ConfigInteger(default=22222, limits=(1, 99999))
         self.user = ConfigText(default="ElieSat")
         self.passw = ConfigText(default="ServerEagle")
 
+        # Additional CCcam parameters
+        self.inactivitytimeout = ConfigInteger(default=30, limits=(1, 9999))
+        self.group = ConfigInteger(default=1, limits=(0, 99))
+        self.disablecrccws = ConfigSelection(default="1", choices=[("0", "No"), ("1", "Yes")])
+        self.cccamversion = ConfigText(default="2.0.11")
+        self.cccwantemu = ConfigSelection(default="1", choices=[("0", "No"), ("1", "Yes")])
+        self.ccckeepalive = ConfigSelection(default="1", choices=[("0", "No"), ("1", "Yes")])
+        self.audisabled = ConfigSelection(default="1", choices=[("0", "No"), ("1", "Yes")])
+
+        # Config list
         cfg_list = [
             getConfigListEntry("Label:", self.label),
+            getConfigListEntry("Status:", self.status),
             getConfigListEntry("Protocol:", self.protocol),
             getConfigListEntry("Host:", self.host),
             getConfigListEntry("Port:", self.port),
             getConfigListEntry("Username:", self.user),
             getConfigListEntry("Password:", self.passw),
+            getConfigListEntry("Inactivity Timeout:", self.inactivitytimeout),
+            getConfigListEntry("Group:", self.group),
+            getConfigListEntry("Disable CRC/CWS:", self.disablecrccws),
+            getConfigListEntry("CCcam Version:", self.cccamversion),
+            getConfigListEntry("Want Emu:", self.cccwantemu),
+            getConfigListEntry("Keep Alive:", self.ccckeepalive),
+            getConfigListEntry("Audio Disabled:", self.audisabled),
         ]
         ConfigListScreen.__init__(self, cfg_list, session=session)
+
+        # Remove virtual keyboard for text fields
+        for field in [self.label, self.host, self.user, self.passw, self.cccamversion]:
+            field.useKeyboard = False
 
         # Buttons
         self["red"] = Label("Save")
@@ -149,7 +174,9 @@ class Cccamadder(Screen, ConfigListScreen):
         self.close()
 
     def save_cccam(self):
-        line = f"{self.label.value} {self.protocol.value} {self.host.value} {self.port.value} {self.user.value} {self.passw.value}\n"
+        line = f"{self.label.value} {self.status.value} {self.protocol.value} {self.host.value} {self.port.value} {self.user.value} {self.passw.value} " \
+               f"inactivitytimeout={self.inactivitytimeout.value} group={self.group.value} disablecrccws={self.disablecrccws.value} " \
+               f"cccamversion={self.cccamversion.value} cccwantemu={self.cccwantemu.value} ccckeepalive={self.ccckeepalive.value} audisabled={self.audisabled.value}\n"
         path = "/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/sus/cccam.txt"
         with open(path, "a") as f:
             f.write(line)
