@@ -30,7 +30,7 @@ import socket
 import sys
 import math
 import subprocess
-from enigma import gFont, ePoint, eSize
+from enigma import gFont, ePoint, eSize, getDesktop
 from skin import parseColor
 from Screens.Screen import Screen
 from Components.ActionMap import ActionMap
@@ -490,10 +490,28 @@ class EliesatPanel(Screen):
     skin = ""
 
     def __init__(self, session):
-        Screen.__init__(self, session)
+        # Detect screen width and load appropriate skin (HD / FHD)
+        screen_width = 0
+        try:
+            screen_width = getDesktop(0).size().width()
+        except Exception:
+            # fallback to HD if detection fails
+            screen_width = 1280
+
+        base_skin_path = "/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/skin/"
+        hd_skin = os.path.join(base_skin_path, "eliesatpanel_hd.xml")
+        fhd_skin = os.path.join(base_skin_path, "eliesatpanel_fhd.xml")
+
+        # Choose skin file
+        if screen_width >= 1920 and os.path.exists(fhd_skin):
+            skin_file = fhd_skin
+        elif os.path.exists(hd_skin):
+            skin_file = hd_skin
+        else:
+            # fallback to existing single-file name for compatibility
+            skin_file = os.path.join(base_skin_path, "eliesatpanel.xml")
 
         # Load skin
-        skin_file = "/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/skin/eliesatpanel.xml"
         if os.path.exists(skin_file):
             try:
                 with open(skin_file, "r") as f:
@@ -505,6 +523,9 @@ class EliesatPanel(Screen):
                 <eLabel text="Eliesat Panel - Skin Missing" position="center,center" size="400,50"
                     font="Regular;30" halign="center" valign="center" />
             </screen>"""
+
+        # Initialize screen AFTER skin is set
+        Screen.__init__(self, session)
 
         # --- Widgets ---
         self["menu"] = FlexibleMenu([])
