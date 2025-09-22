@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from Plugins.Extensions.ElieSatPanel.__init__ import Version
 from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
     get_local_ip, check_internet, get_image_name,
     get_python_version, get_storage_info, get_ram_info
@@ -88,13 +89,28 @@ class Cccamadder(Screen, ConfigListScreen):
             font="Bold;28" halign="left" valign="center" foregroundColor="yellow"
             backgroundColor="#000000" transparent="1" />
 
-        <!-- Config list -->
-        <widget name="config" position="150,180" size="1100,900"
-            font="Bold;32" itemHeight="50"
-            foregroundColor="yellow"
-            transparent="1" scrollbarMode="showOnDemand"
-            enableWrapAround="1"
-            valign="center"/>
+            <!-- Config list with selection highlight -->
+    <widget name="config" position="150,180" size="1100,900"
+        font="Bold;32" itemHeight="50"
+        foregroundColor="yellow"
+        transparent="1" scrollbarMode="showOnDemand"
+        enableWrapAround="1"
+        valign="center"
+        selectionPixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/icon/selection.png"
+        />
+
+    <!-- 🔹 Vertical texts -->
+    <widget name="left_bar"
+        position="20,160" size="60,760" zPosition="20"
+        font="Regular;26" halign="center" valign="top"
+        noWrap="1" foregroundColor="yellow" backgroundColor="#000000"
+        transparent="0" />
+    <widget name="right_bar"
+        position="1850,160" size="60,760" zPosition="20"
+        font="Regular;26" halign="center" valign="top"
+        noWrap="1" foregroundColor="yellow" backgroundColor="#000000"
+        transparent="0" />
+
     </screen>
     """
 
@@ -109,6 +125,11 @@ class Cccamadder(Screen, ConfigListScreen):
         self["RAMInfo"] = Label(get_ram_info())
         self["python_ver"] = Label("Python: " + get_python_version())
         self["net_status"] = Label("Net: " + check_internet())
+        vertical_left = "\n".join(list("Version " + Version))
+        vertical_right = "\n".join(list("By ElieSat"))
+        self["left_bar"] = Label(vertical_left)
+        self["right_bar"] = Label(vertical_right)
+
 
         # Config fields
         self.label = ConfigText(default="Server-Eagle")
