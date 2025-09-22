@@ -21,7 +21,7 @@ from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
     get_ram_info,
 )
 from Plugins.Extensions.ElieSatPanel.__init__ import Version
-
+from Plugins.Extensions.ElieSatPanel.menus.Console import Console
 scriptpath = "/usr/script/"
 if not os.path.exists(scriptpath):
     os.makedirs(scriptpath, exist_ok=True)
@@ -31,9 +31,6 @@ USER_AGENTS = [
     "Mozilla/5.0 (iPhone; CPU iPhone OS 14_4_2 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/110.0"
 ]
-
-SCRIPT_TARBALL_URL = "https://raw.githubusercontent.com/eliesat/scripts/main/installer.tar"
-
 
 class Scripts(Screen):
     def __init__(self, session):
@@ -213,29 +210,10 @@ class Scripts(Screen):
         self.session.openWithCallback(self.xremove, MessageBox, _('Remove all scripts?'), MessageBox.TYPE_YESNO)
 
     def xremove(self, answer=False):
-        if answer:
-            for f in os.listdir(scriptpath):
-                os.remove(os.path.join(scriptpath, f))
-            self.loadScripts()
-            self.session.open(MessageBox, _('Scripts removed!'), MessageBox.TYPE_INFO)
+      os.system('rm -rf /usr/script/*')
+      self.session.open(MessageBox,(_("Remove of scripts lists is done , press the green button to reinstall")), MessageBox.TYPE_INFO, timeout = 4 )
 
     def update(self):
-        dest = '/tmp/scripts.tar'
-        try:
-            headers = {"User-Agent": choice(USER_AGENTS)}
-            response = get(SCRIPT_TARBALL_URL, headers=headers, timeout=10)
-            response.raise_for_status()
-            with open(dest, 'wb') as f:
-                f.write(response.content)
-            os.system("tar -xf {} -C '{}'".format(dest, scriptpath))
-            os.remove(dest)
-            for script in os.listdir(scriptpath):
-                if script.endswith(".sh"):
-                    os.chmod(os.path.join(scriptpath, script), 0o755)
-            self.loadScripts()
-            self.session.open(MessageBox, _("Scripts updated successfully!"), MessageBox.TYPE_INFO)
-        except exceptions.RequestException as e:
-            self.session.open(MessageBox, _("Network error: %s") % str(e), MessageBox.TYPE_ERROR)
-        except Exception as e:
-            self.session.open(MessageBox, str(e), MessageBox.TYPE_ERROR)
-
+      self.session.open(Console, _("Installing scripts please wait..."), [
+            "wget --no-check-certificate https://raw.githubusercontent.com/eliesat/scripts/main/installer.sh -qO - | /bin/sh"
+        ])
