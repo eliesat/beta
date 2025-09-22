@@ -6,12 +6,12 @@ from random import choice
 from requests import get, exceptions
 
 from Screens.Screen import Screen
-from Screens.Console import Console
 from Screens.MessageBox import MessageBox
 from Components.ActionMap import ActionMap
 from Components.Label import Label
 from Components.MenuList import MenuList
-from enigma import getDesktop
+from Components.ScrollLabel import ScrollLabel
+from enigma import eConsoleAppContainer, getDesktop
 from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
     get_local_ip,
     check_internet,
@@ -71,13 +71,17 @@ class Scripts(Screen):
         self["script_name"] = Label("")
         self["page_info"] = Label("Page 1/1")
 
+        # Console output area
+        self["console"] = ScrollLabel("")
+        self.container = None
+
         # Actions
         self["actions"] = ActionMap(
             ["OkCancelActions", "ColorActions"],
             {
-                "ok": self.run,
-                "green": self.update,
-                "yellow": self.bgrun,
+                "ok": self.run,        # run with console
+                "green": self.update,  # green keeps original function
+                "yellow": self.bgrun,  # run in background
                 "red": self.remove,
                 "blue": self.restart,
                 "up": self.moveUp,
@@ -131,7 +135,7 @@ class Scripts(Screen):
         self.updateSelection()
 
     # -------------------------
-    # Script execution via Console
+    # Script execution with embedded console (OK button)
     # -------------------------
     def run(self):
         script = self["list"].getCurrent()
@@ -150,30 +154,60 @@ class Scripts(Screen):
         else:
             cmd = "python " + full_path
 
-        # Open Console screen
-        self.session.open(Console, _("Executing: {}").format(script), cmdlist=[cmd])
+        # Clear console
+        self["console"].setText("")
+        self.container = eConsoleAppContainer()
+        try:
+            self.container.dataAvail.append(self.logData)
+        except:
+            self.container.dataAvail_conn = self.container.dataAvail.connect(self.logData)
+        try:
+            self.container.appClosed.append(self.finishExecution)
+        except:
+            self.container.appClosed_conn = self.container.appClosed.connect(self.finishExecution)
+
+        self.container.execute(cmd)
+
+    def logData(self, data):
+        text = data.decode()
+        old = self["console"].getText()
+        new_text = old + text
+        self["console"].setText(new_text)
+
+    def finishExecution(self, retval):
+        if retval == 0:
+            self.session.open(MessageBox, _("Execution completed!"), MessageBox.TYPE_INFO)
+        else:
+            self.session.open(MessageBox, _("Error while running (Code: %d)") % retval, MessageBox.TYPE_ERROR)
 
     # -------------------------
-    # Other actions
+    # Yellow button: run in background silently
     # -------------------------
-    def restart(self):
-        self.session.open(Console, _("Restarting Enigma2..."), ["killall -9 enigma2"])
-
     def bgrun(self):
-        # Run in background with Console screen
         script = self["list"].getCurrent()
         if not script:
             self.session.open(MessageBox, _("No script selected!"), MessageBox.TYPE_INFO)
             return
 
         full_path = os.path.join(scriptpath, script)
+        if not exists(full_path):
+            self.session.open(MessageBox, _("Script not found!"), MessageBox.TYPE_ERROR)
+            return
+
         if full_path.endswith(".sh"):
             chmod(full_path, 0o755)
-            cmd = full_path
+            cmd = "{} &".format(full_path)
         else:
-            cmd = "python " + full_path
+            cmd = "python {} &".format(full_path)
 
-        self.session.open(Console, _("Background Script: {}").format(script), cmdlist=[cmd])
+        os.system(cmd)
+        self.session.open(MessageBox, _("Script is running in background!"), MessageBox.TYPE_INFO, timeout=3)
+
+    # -------------------------
+    # Other actions
+    # -------------------------
+    def restart(self):
+        self.session.open(Console, _("Restarting Enigma2..."), ["killall -9 enigma2"])
 
     def remove(self):
         self.session.openWithCallback(self.xremove, MessageBox, _('Remove all scripts?'), MessageBox.TYPE_YESNO)
