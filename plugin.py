@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from Plugins.Extensions.ElieSatPanel.__init__ import Version
+from .menus.Console import Console
 from Plugins.Extensions.ElieSatPanel.menus.Iptvadder import Iptvadder
 from Plugins.Extensions.ElieSatPanel.menus.Cccamadder import Cccamadder
 from Plugins.Extensions.ElieSatPanel.menus.News import News
@@ -30,20 +31,25 @@ import socket
 import sys
 import math
 import subprocess
-from enigma import gFont, ePoint, eSize, getDesktop
+from Plugins.Plugin import PluginDescriptor
 from skin import parseColor
+from Screens.InputBox import InputBox
 from Screens.Screen import Screen
+from Screens.MessageBox import MessageBox
+from sys import version_info
+from Tools.LoadPixmap import LoadPixmap
+from Tools.Directories import resolveFilename, SCOPE_PLUGINS, fileExists
+from threading import Timer
 from Components.ActionMap import ActionMap
 from Components.Label import Label
-from Screens.MessageBox import MessageBox
-from Plugins.Plugin import PluginDescriptor
-from sys import version_info
 from Components.GUIComponent import GUIComponent
 from Components.MultiContent import (
     MultiContentEntryText,
     MultiContentEntryPixmap,
     MultiContentEntryPixmapAlphaTest,
 )
+from Components.ConfigList import ConfigListScreen
+from Components.config import ConfigText, getConfigListEntry
 from enigma import (
     eListboxPythonMultiContent,
     eListbox,
@@ -52,18 +58,15 @@ from enigma import (
     eSize,
     ePoint,
     gFont,
+    getDesktop,
     BT_SCALE,
     BT_KEEP_ASPECT_RATIO,
     BT_ALIGN_CENTER,
     RT_HALIGN_CENTER,
     RT_VALIGN_CENTER,
 )
-from Tools.LoadPixmap import LoadPixmap
-from Tools.Directories import resolveFilename, SCOPE_PLUGINS, fileExists
-from skin import parseColor
-from threading import Timer
-from .menus.Console import Console
 
+PY3 = version_info[0] == 3
 try:
     # Python 3
     from urllib.request import Request as compat_Request, urlopen as compat_urlopen
@@ -71,12 +74,7 @@ except ImportError:
     # Python 2
     from urllib2 import Request as compat_Request, urlopen as compat_urlopen
 
-PY3 = version_info[0] == 3
 installer = 'https://raw.githubusercontent.com/eliesat/beta/main/installer1.sh'
-
-from Screens.InputBox import InputBox
-from Components.ConfigList import ConfigListScreen
-from Components.config import ConfigText, getConfigListEntry
 
 # ---------------- PANEL DIRECTORIES ----------------
 PANEL_DIRS = [
