@@ -74,6 +74,39 @@ except ImportError:
 PY3 = version_info[0] == 3
 installer = 'https://raw.githubusercontent.com/eliesat/beta/main/installer1.sh'
 
+from Screens.InputBox import InputBox
+from Components.ConfigList import ConfigListScreen
+from Components.config import ConfigText, getConfigListEntry
+
+# ---------------- PANEL DIRECTORIES ----------------
+PANEL_DIRS = [
+    "/media/hdd/ElieSatPanel",   # default
+    "/media/usb/ElieSatPanel",
+    "/media/mmc/ElieSatPanel"
+]
+CONFIG_FILE = "/media/hdd/ElieSatPanel/panel_dir.cfg"
+
+def save_last_dir(directory):
+    try:
+        folder = os.path.dirname(CONFIG_FILE)
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        with open(CONFIG_FILE, "w") as f:
+            f.write(directory)
+    except Exception as e:
+        print("[ElieSatPanel] save_last_dir error:", e)
+
+def load_last_dir():
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r") as f:
+                dir = f.read().strip()
+                if dir in PANEL_DIRS:
+                    return dir
+    except:
+        pass
+    return PANEL_DIRS[0]  # default HDD
+
 # ---------------- FLEXIBLE MENU ----------------
 class FlexibleMenu(GUIComponent):
     def __init__(self, list_):
@@ -485,46 +518,90 @@ class FlexibleMenu(GUIComponent):
         if self.instance:
             self.setL()
 
+# ---------------- DIRECTORY SCREEN ----------------
+class DirectoryScreen(Screen):
+    skin = """
+    <screen name="DirectoryScreen" position="center,center" size="600,220" title="ElieSatPanel">
+        <widget name="label" position="10,10" size="580,40" font="Regular;20" foregroundColor="white"/>
+        <widget name="dir" position="10,60" size="580,150" font="Regular;18"/>
+    </screen>"""
+
+    def __init__(self, session):
+        Screen.__init__(self, session)
+        self.dir_index = PANEL_DIRS.index(load_last_dir())
+        self.current_dir = PANEL_DIRS[self.dir_index]
+        self["label"] = Label("OK: Apply / GREEN: Browse / YELLOW: Cycle dirs")
+        self["dir"] = Label(self.current_dir)
+        self["actions"] = ActionMap(
+            ["OkCancelActions", "ColorActions"],
+            {
+                "ok": self.apply_dir,
+                "green": self.browse_dir,
+                "yellow": self.cycle_dir,
+                "cancel": self.close
+            }, -1
+        )
+
+    def apply_dir(self):
+        if self.current_dir != PANEL_DIRS[0]:
+            save_last_dir(self.current_dir)
+            if not os.path.exists(self.current_dir):
+                os.makedirs(self.current_dir)
+            self.session.open(MessageBox, f"Directory applied:\n{self.current_dir}", MessageBox.TYPE_INFO)
+        else:
+            self.session.open(MessageBox, f"Default HDD directory remains:\n{self.current_dir}", MessageBox.TYPE_INFO)
+        self.close()
+
+    def browse_dir(self):
+        if os.path.exists(self.current_dir):
+            self.session.openWithCallback(self.folder_selected, FileBrowser, directory=self.current_dir, type=FileBrowser.TYPE_DIR)
+        else:
+            self.session.open(MessageBox, f"Directory does not exist:\n{self.current_dir}", MessageBox.TYPE_ERROR)
+
+    def cycle_dir(self):
+        self.dir_index = (self.dir_index + 1) % len(PANEL_DIRS)
+        self.current_dir = PANEL_DIRS[self.dir_index]
+        self["dir"].setText(self.current_dir)
+
+    def folder_selected(self, selected):
+        if selected:
+            self.current_dir = selected
+            self["dir"].setText(self.current_dir)
+
 # ---------------- MAIN PANEL ----------------
 class EliesatPanel(Screen):
     skin = ""
 
     def __init__(self, session):
-        # Detect screen width and load appropriate skin (HD / FHD)
-        screen_width = 0
+        # Detect screen width
+        screen_width = 1280
         try:
             screen_width = getDesktop(0).size().width()
         except Exception:
-            # fallback to HD if detection fails
-            screen_width = 1280
+            pass
 
+        # Load skin file
         base_skin_path = "/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/skin/"
         hd_skin = os.path.join(base_skin_path, "eliesatpanel_hd.xml")
         fhd_skin = os.path.join(base_skin_path, "eliesatpanel_fhd.xml")
-
-        # Choose skin file
+        skin_file = hd_skin
         if screen_width >= 1920 and os.path.exists(fhd_skin):
             skin_file = fhd_skin
         elif os.path.exists(hd_skin):
             skin_file = hd_skin
         else:
-            # fallback to existing single-file name for compatibility
             skin_file = os.path.join(base_skin_path, "eliesatpanel.xml")
 
-        # Load skin
-        if os.path.exists(skin_file):
-            try:
-                with open(skin_file, "r") as f:
-                    self.skin = f.read()
-            except Exception:
-                self.skin = ""
-        if not self.skin:
+        # Read skin
+        try:
+            with open(skin_file, "r") as f:
+                self.skin = f.read()
+        except Exception:
             self.skin = """<screen name="ElieSatPanel" position="center,center" size="1280,720" title="ElieSatPanel">
                 <eLabel text="Eliesat Panel - Skin Missing" position="center,center" size="400,50"
                     font="Regular;30" halign="center" valign="center" />
             </screen>"""
 
-        # Initialize screen AFTER skin is set
         Screen.__init__(self, session)
 
         # --- Widgets ---
@@ -546,6 +623,8 @@ class EliesatPanel(Screen):
         self["RAMInfo"] = Label(get_ram_info())
         self["python_ver"] = Label("Python: " + get_python_version())
         self["net_status"] = Label("Net: " + check_internet())
+
+        # Start update timer
         t = Timer(0.5, self.update_me)
         t.start()
 
@@ -578,36 +657,15 @@ class EliesatPanel(Screen):
         ]
         self["menu"].setList(self.menuList)
 
-        # --- Description label ---
-        def updateDescription():
-            current = self["menu"].getCurrent()
-            if current:
-                try:
-                    self["description"].setText(current[1])
-                except Exception:
-                    self["description"].setText("")
-        self["menu"].onSelectionChanged.append(updateDescription)
-        updateDescription()
-
-        # --- Page counter and dots ---
-        def updatePageInfo():
-            currentPage = self["menu"].getCurrentPage()
-            totalPages = self["menu"].total_pages
-
-            # Page counter
-            self["pageinfo"].setText(f"Page {currentPage}/{totalPages}")
-
-            # Dots
-            dots = ""
-            for i in range(1, totalPages + 1):
-                dots += "● " if i == currentPage else "○ "
-            self["pagelabel"].setText(dots.strip())
-        self["menu"].onSelectionChanged.append(updatePageInfo)
-        updatePageInfo()
+        # --- Description & page info ---
+        self["menu"].onSelectionChanged.append(self.updateDescription)
+        self["menu"].onSelectionChanged.append(self.updatePageInfo)
+        self.updateDescription()
+        self.updatePageInfo()
 
         # --- Actions ---
         self["setupActions"] = ActionMap(
-            ["OkCancelActions", "DirectionActions", "ColorActions"],
+            ["OkCancelActions", "DirectionActions", "ColorActions", "MenuActions"],
             {
                 "cancel": self.close,
                 "red": self.openIptvadder,
@@ -619,6 +677,7 @@ class EliesatPanel(Screen):
                 "right": self.right,
                 "up": self.up,
                 "down": self.down,
+                "menu": self.open_directory_selector,  # Open directory selector
             },
             -1,
         )
@@ -657,46 +716,59 @@ class EliesatPanel(Screen):
     def openIptvadder(self):
         try: self.session.open(Iptvadder)
         except: self.session.open(MessageBox, "Cannot open Iptvadder.", type=MessageBox.TYPE_ERROR, timeout=5)
+
     def openCccamadder(self):
         try: self.session.open(Cccamadder)
         except: self.session.open(MessageBox, "Cannot open Cccamadder.", type=MessageBox.TYPE_ERROR, timeout=5)
+
     def openNews(self):
         try: self.session.open(News)
         except: self.session.open(MessageBox, "Cannot open News.", type=MessageBox.TYPE_ERROR, timeout=5)
+
     def openScripts(self):
         try: self.session.open(Scripts)
         except: self.session.open(MessageBox, "Cannot open Scripts.", type=MessageBox.TYPE_ERROR, timeout=5)
 
-    # ---------------- UPDATE HANDLING ----------------
+    # --- Menu button ---
+    def open_directory_selector(self):
+     self.session.open(DirectoryScreen)
+
+    # --- Description / Page info updates ---
+    def updateDescription(self):
+        current = self["menu"].getCurrent()
+        if current:
+            self["description"].setText(current[1] if len(current) > 1 else "")
+
+    def updatePageInfo(self):
+        currentPage = self["menu"].getCurrentPage()
+        totalPages = self["menu"].total_pages
+        self["pageinfo"].setText(f"Page {currentPage}/{totalPages}")
+        dots = " ".join(["●" if i == currentPage else "○" for i in range(1, totalPages + 1)])
+        self["pagelabel"].setText(dots)
+
+    # --- Update handler ---
     def update_me(self):
-        remote_version = '0.0'
-        remote_changelog = ''
-        req = compat_Request(installer, headers={'User-Agent': 'Mozilla/5.0'})
-        page = compat_urlopen(req).read()
-
-        if PY3:
-            data = page.decode("utf-8")
-        else:
-            data = page.encode("utf-8")
-
-        if data:
-            lines = data.split("\n")
-            for line in lines:
-                if line.startswith("version"):
-                    remote_version = line.split("'")[1]
-                if line.startswith("changelog"):
-                    remote_changelog = line.split("'")[1]
-                    break
-
         try:
+            remote_version = '0.0'
+            remote_changelog = ''
+            req = compat_Request(installer, headers={'User-Agent': 'Mozilla/5.0'})
+            page = compat_urlopen(req).read()
+            data = page.decode("utf-8") if PY3 else page.encode("utf-8")
+
+            if data:
+                for line in data.split("\n"):
+                    if line.startswith("version"):
+                        remote_version = line.split("'")[1]
+                    if line.startswith("changelog"):
+                        remote_changelog = line.split("'")[1]
+                        break
+
             if float(Version) < float(remote_version):
-                new_version = remote_version
-                new_changelog = remote_changelog
                 self.session.openWithCallback(
                     self.install_update,
                     MessageBox,
                     _("New version %s is available.\n%s\n\nDo you want to install it now?" %
-                      (new_version, new_changelog)),
+                      (remote_version, remote_changelog)),
                     MessageBox.TYPE_YESNO
                 )
         except Exception as e:
@@ -714,7 +786,6 @@ class EliesatPanel(Screen):
 
     def myCallback(self, result):
         print("[ElieSatPanel] Update finished:", result)
-        return
 
 # ---------------- PLUGIN ENTRY POINTS ----------------
 def main(session, **kwargs):
