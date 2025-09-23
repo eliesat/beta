@@ -536,16 +536,16 @@ class PanelManager(Screen):
             pixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/background/panel_bg.png"/>
 
         <!-- Custom Title -->
-        <widget name="title_custom" position="40,20" size="1200,50" font="Bold;34"
-            foregroundColor="yellow" backgroundColor="#000000" transparent="0" />
+        <widget name="title_custom" position="550,0" size="400,50" font="Bold;34"
+backgroundColor="#000000" foregroundColor="yellow" transparent="0" />
 
         <!-- Label for Default Folder -->
-        <widget name="dir_label" position="40,100" size="400,50" font="Bold;34"
-            foregroundColor="white" backgroundColor="#000000" transparent="0" />
+        <widget name="dir_label" position="40,100" size="1280,50" font="Bold;32"
+            foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
 
         <!-- Current Directory (aligned right) -->
-        <widget name="dir" position="460,100" size="780,50" font="Bold;34"
-            foregroundColor="yellow" backgroundColor="#000000" transparent="0" />
+        <widget name="dir" position="460,100" size="780,50" font="Bold;32"
+            foregroundColor="orange" backgroundColor="#000000" transparent="1" />
 
         <!-- Colored Buttons at the bottom -->
         <ePixmap pixmap="skin_default/buttons/red.png" position="100,650" size="140,40" alphatest="on"/>
@@ -553,11 +553,11 @@ class PanelManager(Screen):
         <ePixmap pixmap="skin_default/buttons/yellow.png" position="600,650" size="140,40" alphatest="on"/>
         <ePixmap pixmap="skin_default/buttons/blue.png" position="850,650" size="140,40" alphatest="on"/>
 
-        <!-- Labels for each button -->
-        <widget name="red_label" position="100,690" size="140,40" font="Bold;24" halign="center" foregroundColor="white" transparent="1"/>
-        <widget name="green_label" position="350,690" size="140,40" font="Bold;24" halign="center" foregroundColor="white" transparent="1"/>
-        <widget name="yellow_label" position="600,690" size="140,40" font="Bold;24" halign="center" foregroundColor="white" transparent="1"/>
-        <widget name="blue_label" position="850,690" size="140,40" font="Bold;24" halign="center" foregroundColor="white" transparent="1"/>
+        <!-- Labels for button -->
+        <widget name="red_label" position="100,690" size="140,40" font="Bold;32" halign="center" foregroundColor="yellow" transparent="1"/>
+        <widget name="green_label" position="350,690" size="140,40" font="Bold;32" halign="center" foregroundColor="yellow" transparent="1"/>
+        <widget name="yellow_label" position="600,690" size="140,40" font="Bold;32" halign="center" foregroundColor="yellow" transparent="1"/>
+        <widget name="blue_label" position="850,690" size="140,40" font="Bold;32" halign="center" foregroundColor="yellow" transparent="1"/>
     </screen>"""
 
     def __init__(self, session):
