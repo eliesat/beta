@@ -584,26 +584,43 @@ backgroundColor="#000000" foregroundColor="yellow" transparent="0" />
         self["actions"] = ActionMap(
             ["OkCancelActions", "ColorActions", "DirectionActions"],
             {
-                "ok": self.apply_dir,
-                "red": self.apply_dir,       # Apply directory
-                "green": self.browse_dir,    # Browse folder
-                "yellow": self.cycle_right,  # Yellow cycles forward
-                "blue": self.close,          # Exit
+                "ok": self.apply_dir,       # Apply directory
+                "red": self.apply_dir,
+                "green": self.browse_dir,   # Browse folder
+                "yellow": self.cycle_right, # Cycle forward
+                "blue": self.close,         # Exit
                 "cancel": self.close,
-                "left": self.cycle_left,     # Left = cycle backward
-                "right": self.cycle_right    # Right = cycle forward
+                "left": self.cycle_left,    # Cycle backward
+                "right": self.cycle_right   # Cycle forward
             }, -1
         )
 
     # --- Apply / create directory ---
     def apply_dir(self):
         try:
+            # Remove panel_dir.cfg from all other directories
+            for folder in PANEL_DIRS:
+                cfg_file = os.path.join(folder, "panel_dir.cfg")
+                if folder != self.current_dir and os.path.exists(cfg_file):
+                    os.remove(cfg_file)
+                    print(f"[ElieSatPanel] Removed old config: {cfg_file}")
+
+            # Create the applied directory if it doesn't exist
             if not os.path.exists(self.current_dir):
                 os.makedirs(self.current_dir)
-            save_last_dir(self.current_dir)
+                print(f"[ElieSatPanel] Created directory: {self.current_dir}")
+
+            # Write panel_dir.cfg in the applied directory
+            cfg_file = os.path.join(self.current_dir, "panel_dir.cfg")
+            with open(cfg_file, "w") as f:
+                f.write(self.current_dir)
+                print(f"[ElieSatPanel] Saved new config in: {cfg_file}")
+
             self.session.open(MessageBox, f"Directory applied:\n{self.current_dir}", MessageBox.TYPE_INFO)
+
         except Exception as e:
-            self.session.open(MessageBox, f"Failed to create folder:\n{e}", MessageBox.TYPE_ERROR)
+            self.session.open(MessageBox, f"Failed to apply folder:\n{e}", MessageBox.TYPE_ERROR)
+
         self.close()
 
     # --- Browse directory ---
@@ -634,6 +651,7 @@ backgroundColor="#000000" foregroundColor="yellow" transparent="0" />
         if selected:
             self.current_dir = selected
             self["dir"].setText(self.current_dir)
+
 
 # ---------------- MAIN PANEL ----------------
 class EliesatPanel(Screen):
