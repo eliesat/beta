@@ -10,8 +10,14 @@ from Components.ActionMap import ActionMap
 from Components.Label import Label
 from Components.ConfigList import ConfigListScreen
 from Components.config import ConfigText, ConfigSelection, ConfigInteger, getConfigListEntry
-from Tools.Directories import resolveFilename, SCOPE_PLUGINS, fileExists
 import os
+
+# Directories to search for panel_dir.cfg
+PANEL_DIRS = [
+    "/media/usb/ElieSatPanel",
+    "/media/hdd/ElieSatPanel",
+    "/media/mmc/ElieSatPanel"
+]
 
 class Cccamadder(Screen, ConfigListScreen):
     skin = """
@@ -88,28 +94,27 @@ class Cccamadder(Screen, ConfigListScreen):
             font="Bold;28" halign="left" valign="center" foregroundColor="yellow"
             backgroundColor="#000000" transparent="1" />
 
-            <!-- Config list with selection highlight -->
-    <widget name="config" position="150,180" size="1100,900"
-        font="Bold;32" itemHeight="50"
-        foregroundColor="yellow"
-        transparent="1" scrollbarMode="showOnDemand"
-        enableWrapAround="1"
-        valign="center"
-        selectionPixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/icon/selection.png"
+        <!-- Config list -->
+        <widget name="config" position="150,180" size="1100,900"
+            font="Bold;32" itemHeight="50"
+            foregroundColor="yellow"
+            transparent="1" scrollbarMode="showOnDemand"
+            enableWrapAround="1"
+            valign="center"
+            selectionPixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/icon/selection.png"
         />
 
-    <!-- 🔹 Vertical texts -->
-    <widget name="left_bar"
-        position="20,160" size="60,760" zPosition="20"
-        font="Regular;26" halign="center" valign="top"
-        noWrap="1" foregroundColor="yellow" backgroundColor="#000000"
-        transparent="0" />
-    <widget name="right_bar"
-        position="1850,160" size="60,760" zPosition="20"
-        font="Regular;26" halign="center" valign="top"
-        noWrap="1" foregroundColor="yellow" backgroundColor="#000000"
-        transparent="0" />
-
+        <!-- Vertical texts -->
+        <widget name="left_bar"
+            position="20,160" size="60,760" zPosition="20"
+            font="Regular;26" halign="center" valign="top"
+            noWrap="1" foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
+        <widget name="right_bar"
+            position="1850,160" size="60,760" zPosition="20"
+            font="Regular;26" halign="center" valign="top"
+            noWrap="1" foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
     </screen>
     """
 
@@ -117,7 +122,10 @@ class Cccamadder(Screen, ConfigListScreen):
         Screen.__init__(self, session)
         self.session = session
 
-        # System info
+        # Detect panel folder
+        self.panel_dir = self.detect_panel_dir()
+
+        # System info labels
         self["image_name"] = Label("Image: " + get_image_name())
         self["local_ip"] = Label("IP: " + get_local_ip())
         self["StorageInfo"] = Label(get_storage_info())
@@ -167,7 +175,7 @@ class Cccamadder(Screen, ConfigListScreen):
         ConfigListScreen.__init__(self, cfg_list, session=session)
 
         # Buttons
-        self["red"] = Label("Save")
+        self["red"] = Label("Show Path")
         self["green"] = Label("Close")
         self["yellow"] = Label("Print")
         self["blue"] = Label("Report")
@@ -176,31 +184,39 @@ class Cccamadder(Screen, ConfigListScreen):
         self["actions"] = ActionMap(
             ["OkCancelActions", "ColorActions"],
             {
-                "red": self.show_default_path,  # Red button now shows default path
+                "red": self.show_default_path,
                 "green": self.close_screen,
-                "yellow": self.print_fields,    # Yellow prints subscription
+                "yellow": self.print_fields,
                 "blue": self.report_cccam,
                 "cancel": self.close_screen,
             },
             -1,
         )
 
+    # ----------------------------
+    # Detect panel folder
+    # ----------------------------
+    def detect_panel_dir(self):
+        for folder in PANEL_DIRS:
+            if os.path.exists(os.path.join(folder, "panel_dir.cfg")):
+                return folder
+        # fallback
+        return "/media/hdd/ElieSatPanel"
+
+    # ----------------------------
     def close_screen(self):
         self.close()
 
-    # ======================
-    # Red button: show default path
-    # ======================
+    # ----------------------------
+    # Red button
+    # ----------------------------
     def show_default_path(self):
-        # Default path for ElieSatPanel
-        path = "/media/hdd/ElieSatPanel"
-        self.session.open(MessageBox, f"Default path folder:\n{path}", MessageBox.TYPE_INFO, timeout=5)
+        self.session.open(MessageBox, f"Default panel folder:\n{self.panel_dir}", MessageBox.TYPE_INFO, timeout=5)
 
-    # ======================
-    # Yellow button: print subscription
-    # ======================
+    # ----------------------------
+    # Yellow button: save subscription
+    # ----------------------------
     def print_fields(self):
-        # Build entry text
         new_entry = (
             "[reader]\n"
             f"label                         = {self.label.value}\n"
@@ -217,19 +233,20 @@ class Cccamadder(Screen, ConfigListScreen):
             f"ccckeepalive                  = {self.ccckeepalive.value}\n"
             f"audisabled                    = {self.audisabled.value}\n"
         )
-        # Save in default path
-        folder = "/media/hdd/ElieSatPanel"
-        file_path = os.path.join(folder, "subscription.txt")
+        if not os.path.exists(self.panel_dir):
+            os.makedirs(self.panel_dir)
+
+        file_path = os.path.join(self.panel_dir, "subscription.txt")
         with open(file_path, "w") as f:
             f.write(new_entry)
         self.session.open(MessageBox, f"Subscription saved to:\n{file_path}", MessageBox.TYPE_INFO, timeout=5)
 
-    # ======================
-    # Report (blue button)
-    # ======================
+    # ----------------------------
+    # Blue button: report
+    # ----------------------------
     def report_cccam(self):
-        path = resolveFilename(SCOPE_PLUGINS, "Extensions/ElieSatPanel/sus/report.txt")
-        if fileExists(path):
+        path = os.path.join(self.panel_dir, "sus/report.txt")
+        if os.path.exists(path):
             with open(path, "r") as f:
                 content = f.read()
             self.session.open(MessageBox, content, MessageBox.TYPE_INFO)
