@@ -101,19 +101,29 @@ def load_last_dir():
                 dir = f.read().strip()
                 if dir in PANEL_DIRS:
                     return dir
-    except:
-        pass
+    except Exception as e:
+        print("[ElieSatPanel] load_last_dir error:", e)
     return PANEL_DIRS[0]  # default HDD
 
-# Ensure ElieSatPanel folder exists on startup #change here
-for folder in PANEL_DIRS:
-    if not os.path.exists(folder):
+# ---------------- CHECK IF ALL FOLDERS ARE MISSING ----------------
+all_missing = all(not os.path.exists(folder) for folder in PANEL_DIRS)
+
+# ---------------- CREATE FOLDERS + CONFIG ONLY IF ALL MISSING ----------------
+if all_missing:
+    for folder in PANEL_DIRS:
         try:
             os.makedirs(folder)
             print(f"[ElieSatPanel] Created folder: {folder}")
         except Exception as e:
             print(f"[ElieSatPanel] Failed to create folder {folder}: {e}")
 
+    # Create config file in HDD folder
+    try:
+        with open(CONFIG_FILE, "w") as f:
+            f.write(PANEL_DIRS[0])  # default HDD path
+        print(f"[ElieSatPanel] Created default config file: {CONFIG_FILE}")
+    except Exception as e:
+        print(f"[ElieSatPanel] Failed to create config file: {e}")
 
 # ---------------- FLEXIBLE MENU ----------------
 class FlexibleMenu(GUIComponent):
