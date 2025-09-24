@@ -40,7 +40,7 @@ class Cccamadder(Screen, ConfigListScreen):
         <eLabel position="0,1075" size="480,5" zPosition="2" backgroundColor="red" />
         <widget name="red" position="0,1000" size="480,75" zPosition="2"
             font="Bold;32" halign="center" valign="center"
-            text="Save" foregroundColor="yellow" backgroundColor="#000000" transparent="0" />
+            text="Show Path" foregroundColor="yellow" backgroundColor="#000000" transparent="0" />
 
         <eLabel position="480,1075" size="480,5" zPosition="2" backgroundColor="green" />
         <widget name="green" position="480,1000" size="480,75" zPosition="2"
@@ -50,7 +50,7 @@ class Cccamadder(Screen, ConfigListScreen):
         <eLabel position="960,1075" size="480,5" zPosition="2" backgroundColor="yellow" />
         <widget name="yellow" position="960,1000" size="480,75" zPosition="2"
             font="Bold;32" halign="center" valign="center"
-            text="Print" foregroundColor="yellow" backgroundColor="#000000" transparent="0" />
+            text="Add Reader" foregroundColor="yellow" backgroundColor="#000000" transparent="0" />
 
         <eLabel position="1440,1075" size="480,5" zPosition="2" backgroundColor="blue" />
         <widget name="blue" position="1440,1000" size="480,75" zPosition="2"
@@ -118,14 +118,13 @@ class Cccamadder(Screen, ConfigListScreen):
     </screen>
     """
 
+
     def __init__(self, session):
         Screen.__init__(self, session)
         self.session = session
-
-        # Detect panel folder
         self.panel_dir = self.detect_panel_dir()
 
-        # System info labels
+        # System info
         self["image_name"] = Label("Image: " + get_image_name())
         self["local_ip"] = Label("IP: " + get_local_ip())
         self["StorageInfo"] = Label(get_storage_info())
@@ -151,11 +150,9 @@ class Cccamadder(Screen, ConfigListScreen):
         self.ccckeepalive = ConfigSelection(default="1", choices=[("0", "No"), ("1", "Yes")])
         self.audisabled = ConfigSelection(default="1", choices=[("0", "No"), ("1", "Yes")])
 
-        # Disable virtual keyboard completely
         for field in [self.label, self.host, self.user, self.passw, self.cccamversion]:
             field.useKeyboard = False
 
-        # Config list
         cfg_list = [
             getConfigListEntry("Label:", self.label),
             getConfigListEntry("Status:", self.status),
@@ -176,17 +173,16 @@ class Cccamadder(Screen, ConfigListScreen):
 
         # Buttons
         self["red"] = Label("Show Path")
-        self["green"] = Label("Close")
-        self["yellow"] = Label("Print")
+        self["green"] = Label("Manage")
+        self["yellow"] = Label("Add")
         self["blue"] = Label("Report")
 
-        # Actions
         self["actions"] = ActionMap(
             ["OkCancelActions", "ColorActions"],
             {
                 "red": self.show_default_path,
-                "green": self.close_screen,
-                "yellow": self.print_fields,
+                "green": self.manage_readers,
+                "yellow": self.add_reader,
                 "blue": self.report_cccam,
                 "cancel": self.close_screen,
             },
@@ -200,23 +196,52 @@ class Cccamadder(Screen, ConfigListScreen):
         for folder in PANEL_DIRS:
             if os.path.exists(os.path.join(folder, "panel_dir.cfg")):
                 return folder
-        # fallback
         return "/media/hdd/ElieSatPanel"
 
-    # ----------------------------
     def close_screen(self):
         self.close()
 
-    # ----------------------------
-    # Red button
-    # ----------------------------
     def show_default_path(self):
         self.session.open(MessageBox, f"Default panel folder:\n{self.panel_dir}", MessageBox.TYPE_INFO, timeout=5)
 
     # ----------------------------
-    # Yellow button: save subscription
+    # Load readers
     # ----------------------------
-    def print_fields(self):
+    def load_readers(self):
+        file_path = os.path.join(self.panel_dir, "subscription.txt")
+        readers = []
+        if os.path.exists(file_path):
+            with open(file_path, "r") as f:
+                content = f.read()
+            blocks = content.split("[reader]")
+            for block in blocks:
+                if not block.strip():
+                    continue
+                reader_info = {}
+                for line in block.splitlines():
+                    if "=" in line:
+                        key, val = line.split("=", 1)
+                        reader_info[key.strip()] = val.strip()
+                readers.append(reader_info)
+        return readers
+
+    # ----------------------------
+    # Add reader (yellow button)
+    # ----------------------------
+    def add_reader(self):
+        readers = self.load_readers()
+        for r in readers:
+            if (
+                r.get("device", "") == f"{self.host.value},{self.port.value}" and
+                r.get("user", "") == self.user.value and
+                r.get("password", "") == self.passw.value
+            ):
+                self.session.open(MessageBox, "Reader already exists!", MessageBox.TYPE_ERROR)
+                return
+
+        if not os.path.exists(self.panel_dir):
+            os.makedirs(self.panel_dir)
+
         new_entry = (
             "[reader]\n"
             f"label                         = {self.label.value}\n"
@@ -231,18 +256,29 @@ class Cccamadder(Screen, ConfigListScreen):
             f"cccversion                    = {self.cccamversion.value}\n"
             f"cccwantemu                    = {self.cccwantemu.value}\n"
             f"ccckeepalive                  = {self.ccckeepalive.value}\n"
-            f"audisabled                    = {self.audisabled.value}\n"
+            f"audisabled                    = {self.audisabled.value}\n\n"
         )
-        if not os.path.exists(self.panel_dir):
-            os.makedirs(self.panel_dir)
 
         file_path = os.path.join(self.panel_dir, "subscription.txt")
-        with open(file_path, "w") as f:
+        with open(file_path, "a") as f:
             f.write(new_entry)
-        self.session.open(MessageBox, f"Subscription saved to:\n{file_path}", MessageBox.TYPE_INFO, timeout=5)
+
+        self.session.open(MessageBox, f"Reader added to:\n{file_path}", MessageBox.TYPE_INFO, timeout=5)
 
     # ----------------------------
-    # Blue button: report
+    # Manage readers (green button)
+    # ----------------------------
+    def manage_readers(self):
+        path = os.path.join(self.panel_dir, "sus/report.txt")
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                content = f.read()
+            self.session.open(MessageBox, content, MessageBox.TYPE_INFO)
+        else:
+            self.session.open(MessageBox, "Report file not found!", MessageBox.TYPE_ERROR)
+
+    # ----------------------------
+    # Report (blue button)
     # ----------------------------
     def report_cccam(self):
         path = os.path.join(self.panel_dir, "sus/report.txt")
@@ -252,4 +288,5 @@ class Cccamadder(Screen, ConfigListScreen):
             self.session.open(MessageBox, content, MessageBox.TYPE_INFO)
         else:
             self.session.open(MessageBox, "Report file not found!", MessageBox.TYPE_ERROR)
+
 
