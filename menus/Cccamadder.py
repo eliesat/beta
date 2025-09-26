@@ -309,33 +309,60 @@ class Cccamadder(Screen, ConfigListScreen):
         return readers
 
     def add_reader(self):
-        readers = self.load_readers()
         proto = self.protocol.value.lower()
+        label_value = self.label_custom.value if self.label_choice.value == "Custom" else self.label_choice.value
 
-        label_value = (
-            self.label_custom.value if self.label_choice.value == "Custom"
-            else self.label_choice.value
-        )
-
-        for r in readers:
-            if r.get("device","") == f"{self.host.value},{self.port.value}" and r.get("user","") == self.user.value:
-                self.session.open(MessageBox,"Reader already exists!",MessageBox.TYPE_ERROR)
-                return
-        if not os.path.exists(self.panel_dir):
-            os.makedirs(self.panel_dir)
-
-        # Build entry
+        # Build reader entry
         new_entry = f"[reader]\nlabel = {label_value}\nprotocol = {proto}\ndevice = {self.host.value},{self.port.value}\nuser = {self.user.value}\npassword = {self.passw.value}\n"
         if proto == "cccam":
             new_entry += f"inactivitytimeout = {self.inactivitytimeout.value}\ngroup = {self.group.value}\ndisablecrccws = {self.disablecrccws.value}\ncccversion = {self.cccamversion.value}\ncccwantemu = {self.cccwantemu.value}\nccckeepalive = {self.ccckeepalive.value}\naudisabled = {self.audisabled.value}\n\n"
-        else:  # NewCamd / MgCamd
+        else:
             new_entry += f"key = {self.key.value}\ndisableserverfilter = {self.disableserverfilter.value}\nconnectoninit = {self.connectoninit.value}\ngroup = {self.group.value}\ndisablecrccws = {self.disablecrccws.value}\n\n"
 
-        file_path = os.path.join(self.panel_dir,"subscription.txt")
-        with open(file_path,"a") as f:
-            f.write(new_entry)
-        self.session.open(MessageBox,f"Reader added to:\n{file_path}",MessageBox.TYPE_INFO, timeout=5)
+        # Files to check/write
+        target_files = [
+            os.path.join(self.panel_dir, "subscription.txt"),
+            "/etc/tuxbox/config/oscam.server",
+            "/etc/tuxbox/config/ncam.server"
+        ]
 
+        summary = ""
+        for file_path in target_files:
+            if "subscription.txt" in file_path and not os.path.exists(self.panel_dir):
+                os.makedirs(self.panel_dir)
+
+            file_found = os.path.exists(file_path)
+            if not file_found:
+                summary += f"File not found: {file_path}\n"
+                continue
+
+            # Check if reader exists
+            reader_exists = False
+            try:
+                with open(file_path, "r") as f:
+                    content = f.read()
+                blocks = content.split("[reader]")
+                for block in blocks:
+                    if f"{self.host.value},{self.port.value}" in block and self.user.value in block and self.passw.value in block:
+                        reader_exists = True
+                        break
+            except Exception as e:
+                summary += f"Error reading {file_path}: {str(e)}\n"
+                continue
+
+            if reader_exists:
+                summary += f"Reader already exists in: {file_path}\n"
+            else:
+                try:
+                    with open(file_path, "a") as f:
+                        f.write(new_entry)
+                    summary += f"Reader added to: {file_path}\n"
+                except Exception as e:
+                    summary += f"Failed to write to {file_path}: {str(e)}\n"
+
+        if not summary:
+            summary = "No files found or updated."
+        self.session.open(MessageBox, summary, MessageBox.TYPE_INFO, timeout=10)
     # ----------------------------
     # Panel folder detection
     # ----------------------------
