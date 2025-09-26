@@ -1,16 +1,37 @@
 # -*- coding: utf-8 -*-
-from Plugins.Extensions.ElieSatPanel.__init__ import Version
-from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
-    get_local_ip, check_internet, get_image_name,
-    get_python_version, get_storage_info, get_ram_info
-)
+import os
+import re
+from datetime import datetime
+import gettext
+
 from Screens.Screen import Screen
 from Screens.MessageBox import MessageBox
 from Components.ActionMap import ActionMap
 from Components.Label import Label
 from Components.ConfigList import ConfigListScreen
-from Components.config import ConfigText, ConfigSelection, ConfigInteger, getConfigListEntry
-import os
+from Components.config import (
+    ConfigText, ConfigSelection, ConfigInteger, getConfigListEntry
+)
+from Components.MenuList import MenuList
+from Components.Language import language
+
+from Plugins.Extensions.ElieSatPanel.__init__ import Version
+from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
+    get_local_ip, check_internet, get_image_name,
+    get_python_version, get_storage_info, get_ram_info
+)
+
+# --- Translation setup ---
+def localeInit():
+    lang = language.getLanguage()
+    gettext.bindtextdomain(
+        "ElieSatPanel",
+        "/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/locale"
+    )
+
+localeInit()
+_ = gettext.gettext
+
 
 # ----------------------------
 # Panel directories
@@ -194,8 +215,8 @@ class Cccamadder(Screen, ConfigListScreen):
         self["actions"] = ActionMap(
             ["OkCancelActions", "ColorActions"],
             {
-                "red": self.red_button,
-                "green": self.green_button,
+                "red": self.open_red_job,
+                "green": self.open_green_job,
                 "yellow": self.yellow_button,
                 "blue": self.open_blue_job,
                 "cancel": self.close_screen,
@@ -250,11 +271,11 @@ class Cccamadder(Screen, ConfigListScreen):
     # ----------------------------
     # Buttons
     # ----------------------------
-    def red_button(self):
+    def open_red_job(self):
         self.session.open(MessageBox, f"Panel folder:\n{self.panel_dir}", MessageBox.TYPE_INFO, timeout=5)
 
-    def green_button(self):
-        self.manage_readers()
+    def open_green_job(self):
+        self.session.open(GreenJobScreen)
 
     def yellow_button(self):
         self.add_reader()
@@ -314,18 +335,6 @@ class Cccamadder(Screen, ConfigListScreen):
             f.write(new_entry)
         self.session.open(MessageBox,f"Reader added to:\n{file_path}",MessageBox.TYPE_INFO, timeout=5)
 
-    def manage_readers(self):
-        path = os.path.join(self.panel_dir,"sus","report.txt")
-        if os.path.exists(path):
-            with open(path,"r") as f:
-                content = f.read()
-            self.session.open(MessageBox,content,MessageBox.TYPE_INFO)
-        else:
-            self.session.open(MessageBox,"Report file not found!",MessageBox.TYPE_ERROR)
-
-    def report_readers(self):
-        self.manage_readers()
-
     # ----------------------------
     # Panel folder detection
     # ----------------------------
@@ -336,28 +345,10 @@ class Cccamadder(Screen, ConfigListScreen):
                 return folder
         return PANEL_DIRS[1]  # default HDD
 
-    
 # ----------------------------
-# BlueJobScreen
+# GreenJobScreen
 # ----------------------------
-import os
-import re
-from datetime import datetime
-from Screens.Screen import Screen
-from Screens.MessageBox import MessageBox
-from Components.ActionMap import ActionMap
-from Components.Label import Label
-from Components.ConfigList import ConfigListScreen
-
-from Plugins.Extensions.ElieSatPanel.__init__ import Version
-from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
-    get_local_ip, check_internet, get_image_name,
-    get_python_version, get_storage_info, get_ram_info
-)
-
-
-class BlueJobScreen(Screen, ConfigListScreen):
-
+class GreenJobScreen(Screen):
     skin = """
     <screen name="Blank" position="0,0" size="1920,1080" backgroundColor="transparent" flags="wfNoBorder" title="Scripts">
         <ePixmap position="0,0" zPosition="-1" size="1920,1080"
@@ -373,7 +364,7 @@ class BlueJobScreen(Screen, ConfigListScreen):
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="0" />
 
-        <!-- Clock and Date -->
+        <!-- Clock -->
         <widget name="clock" position="1250,0" size="650,50" zPosition="11"
             font="Bold;32" halign="right" valign="center"
             foregroundColor="yellow" backgroundColor="#000000"
@@ -437,8 +428,14 @@ class BlueJobScreen(Screen, ConfigListScreen):
         <widget name="left_bar" position="20,160" size="60,760" font="Regular;26" halign="center" valign="top" foregroundColor="yellow" transparent="1" noWrap="1" />
         <widget name="right_bar" position="1850,160" size="60,760" font="Regular;26" halign="center" valign="top" foregroundColor="yellow" transparent="1" noWrap="1" />
 
-        <!-- Subscription Labels -->
-        <widget name="sub_labels" position="200,200" size="1200,700" font="Bold;33" halign="left" valign="top" foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
+        <!-- Subscription Labels (scrollable list) -->
+        <widget name="sub_labels" position="200,200" size="1200,700" zPosition="12"
+            scrollbarMode="showOnDemand"
+            font="Bold;30"
+            foregroundColor="yellow"
+            backgroundColor="#000000"
+            transparent="0"
+            itemHeight="50" />
     </screen>
     """
 
@@ -447,6 +444,7 @@ class BlueJobScreen(Screen, ConfigListScreen):
         self.session = session
         self.setTitle(_("Subscription Labels"))
 
+        # Left/Right vertical bars
         vertical_left = "\n".join(list("Version " + Version))
         vertical_right = "\n".join(list("By ElieSat"))
         self["left_bar"] = Label(vertical_left)
@@ -460,18 +458,20 @@ class BlueJobScreen(Screen, ConfigListScreen):
         self["python_ver"] = Label("Python: " + get_python_version())
         self["net_status"] = Label("Net: " + check_internet())
 
-        # Clock/date label
+        # Clock
         now = datetime.now().strftime("%Y-%m-%d  %H:%M")
         self["clock"] = Label(now)
 
-        # Subscription labels
-        self["sub_labels"] = Label(self.get_subscription_labels())
+        # Subscription labels list
+        self.sub_labels_list = MenuList([], enableWrapAround=True)
+        self["sub_labels"] = self.sub_labels_list
+        self.update_subscription_list()
 
         # Buttons
-        self["red"] = Label(_("Red"))
-        self["green"] = Label(_("Green"))
-        self["yellow"] = Label(_("Yellow"))
-        self["blue"] = Label(_("Blue"))
+        self["red"] = Label(_("Remove Reader"))
+        self["green"] = Label(_("Test reader"))
+        self["yellow"] = Label(_("Show reader"))
+        self["blue"] = Label(_("Show Reader path"))
 
         # Actions
         self["actions"] = ActionMap(
@@ -481,6 +481,7 @@ class BlueJobScreen(Screen, ConfigListScreen):
                 "green": self.dummy,
                 "yellow": self.dummy,
                 "blue": self.dummy,
+                "ok": self.print_selected_label,
                 "cancel": self.close,
             },
             -1,
@@ -489,25 +490,260 @@ class BlueJobScreen(Screen, ConfigListScreen):
     def dummy(self):
         self.session.open(MessageBox, _("This button is not linked yet."), MessageBox.TYPE_INFO, timeout=3)
 
+    def update_subscription_list(self):
+        labels = self.get_subscription_labels()
+        items = []
+        if labels == "No subscription files found.":
+            items.append(("No subscription files found.", ""))
+        else:
+            for line in labels.split("\n\n"):
+                parts = line.split("--->")
+                if len(parts) == 2:
+                    items.append((parts[1].strip(), parts[1].strip()))
+        self.sub_labels_list.setList(items)
+
+    def print_selected_label(self):
+        selected = self.sub_labels_list.getCurrent()
+        if selected:
+            label_name = selected[1]
+            print("Selected label:", label_name)
+            self.session.open(MessageBox, _("Selected: %s" % label_name), MessageBox.TYPE_INFO, 3)
+
+    def read_labels_from_file(self, path):
+        found = []
+        try:
+            with open(path, "r") as f:
+                content = f.read()
+            matches = re.findall(r"label\s*=\s*(.+)", content, re.IGNORECASE)
+            for m in matches:
+                found.append("%s ---> %s\n" % (path, m.strip()))
+        except Exception as e:
+            found.append("%s ERROR: %s\n" % (path, str(e)))
+        return found
+
     def get_subscription_labels(self):
+        # Directories and files
         dirs = ["/media/hdd/ElieSatPanel", "/media/usb/ElieSatPanel", "/media/mmc/ElieSatPanel"]
-        files = ["subscription.txt", "ncam.server", "oscam.server"]
+        files = ["subscription.txt"]
+        # Full file paths
+        single_files = ["/etc/tuxbox/config/oscam.server", "/etc/tuxbox/config/ncam.server"]
 
         labels_found = []
+
+        # Read from directories
         for d in dirs:
             for fname in files:
                 path = os.path.join(d, fname)
                 if os.path.exists(path):
-                    try:
-                        with open(path, "r") as f:
-                            content = f.read()
-                        matches = re.findall(r"label\s*=\s*([^\s]+)", content, re.IGNORECASE)
-                        for m in matches:
-                            labels_found.append("%s ---> %s\n" % (path, m))
-                    except Exception as e:
-                        labels_found.append("%s ERROR: %s\n" % (path, str(e)))
+                    labels_found.extend(self.read_labels_from_file(path))
+
+        # Read from single file paths
+        for path in single_files:
+            if os.path.exists(path):
+                labels_found.extend(self.read_labels_from_file(path))
 
         if not labels_found:
             return "No subscription files found."
-        return "\n\n".join(labels_found)  # double newline = space row
+        return "\n\n".join(labels_found)
 
+# ----------------------------
+# BlueJobScreen
+# ----------------------------
+
+class BlueJobScreen(Screen):
+    skin = """
+    <screen name="Blank" position="0,0" size="1920,1080" backgroundColor="transparent" flags="wfNoBorder" title="Scripts">
+        <ePixmap position="0,0" zPosition="-1" size="1920,1080"
+            pixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/background/panel_bg.png"/>
+
+        <!-- Top black bar -->
+        <eLabel position="0,0" size="1920,130" zPosition="10" backgroundColor="#000000" />
+
+        <!-- Title -->
+        <eLabel text="● Subscription Reader Labels"
+            position="350,0" size="800,50" zPosition="11"
+            font="Bold;32" halign="left" valign="center" noWrap="1"
+            foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
+
+        <!-- Clock -->
+        <widget name="clock" position="1250,0" size="650,50" zPosition="11"
+            font="Bold;32" halign="right" valign="center"
+            foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
+
+        <!-- Bottom color button bars -->
+        <eLabel position="0,1075" size="480,5" zPosition="2" backgroundColor="red" />
+        <widget name="red" position="0,1000" size="480,75" zPosition="2"
+            font="Bold;32" halign="center" valign="center"
+            text="Red Button"
+            foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
+
+        <eLabel position="480,1075" size="480,5" zPosition="2" backgroundColor="green" />
+        <widget name="green" position="480,1000" size="480,75" zPosition="2"
+            font="Bold;32" halign="center" valign="center"
+            text="Green Button"
+            foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
+
+        <eLabel position="960,1075" size="480,5" zPosition="2" backgroundColor="yellow" />
+        <widget name="yellow" position="960,1000" size="480,75" zPosition="2"
+            font="Bold;32" halign="center" valign="center"
+            text="Yellow Button"
+            foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
+
+        <eLabel position="1440,1075" size="480,5" zPosition="2" backgroundColor="blue" />
+        <widget name="blue" position="1440,1000" size="480,75" zPosition="2"
+            font="Bold;32" halign="center" valign="center"
+            text="Blue Button"
+            foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
+
+        <!-- Left and Right black bars -->
+        <eLabel position="0,130" size="80,870" zPosition="10" backgroundColor="#000000" />
+        <eLabel position="1840,130" size="80,870" zPosition="10" backgroundColor="#000000" />
+
+        <!-- System info -->
+        <widget source="global.CurrentTime" render="Label"
+            position="1350,180" size="500,35" zPosition="12"
+            font="Bold;32" halign="center" valign="center"
+            foregroundColor="yellow" backgroundColor="#000000" transparent="1">
+            <convert type="ClockToText">Format %A %d %B</convert>
+        </widget>
+        <widget source="global.CurrentTime" render="Label"
+            position="1350,220" size="500,35" zPosition="12"
+            font="Bold;32" halign="center" valign="center"
+            foregroundColor="yellow" backgroundColor="#000000" transparent="1">
+            <convert type="ClockToText">Format %H:%M:%S</convert>
+        </widget>
+
+        <widget name="image_name" position="1470,420" size="500,35" font="Bold;32" halign="left" valign="center" foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
+        <widget name="python_ver" position="1470,460" size="500,35" font="Bold;32" halign="left" valign="center" foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
+        <widget name="local_ip" position="1470,500" size="500,35" font="Bold;32" halign="left" valign="center" foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
+        <widget name="StorageInfo" position="1470,540" size="500,35" font="Bold;32" halign="left" valign="center" foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
+        <widget name="RAMInfo" position="1470,580" size="500,35" font="Bold;32" halign="left" valign="center" foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
+        <widget name="net_status" position="1470,620" size="500,35" font="Bold;32" halign="left" valign="center" foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
+
+        <!-- Panel Version -->
+        <widget name="left_bar" position="20,160" size="60,760" font="Regular;26" halign="center" valign="top" foregroundColor="yellow" transparent="1" noWrap="1" />
+        <widget name="right_bar" position="1850,160" size="60,760" font="Regular;26" halign="center" valign="top" foregroundColor="yellow" transparent="1" noWrap="1" />
+
+        <!-- Subscription Labels (scrollable list) -->
+        <widget name="sub_labels" position="200,200" size="1200,700" zPosition="12"
+            scrollbarMode="showOnDemand"
+            font="Bold;30"
+            foregroundColor="yellow"
+            backgroundColor="#000000"
+            transparent="0"
+            itemHeight="50" />
+    </screen>
+    """
+
+    def __init__(self, session):
+        Screen.__init__(self, session)
+        self.session = session
+        self.setTitle(_("Subscription Labels"))
+
+        # Left/Right vertical bars
+        vertical_left = "\n".join(list("Version " + Version))
+        vertical_right = "\n".join(list("By ElieSat"))
+        self["left_bar"] = Label(vertical_left)
+        self["right_bar"] = Label(vertical_right)
+
+        # System info
+        self["image_name"] = Label("Image: " + get_image_name())
+        self["local_ip"] = Label("IP: " + get_local_ip())
+        self["StorageInfo"] = Label(get_storage_info())
+        self["RAMInfo"] = Label(get_ram_info())
+        self["python_ver"] = Label("Python: " + get_python_version())
+        self["net_status"] = Label("Net: " + check_internet())
+
+        # Clock
+        now = datetime.now().strftime("%Y-%m-%d  %H:%M")
+        self["clock"] = Label(now)
+
+        # Subscription labels list
+        self.sub_labels_list = MenuList([], enableWrapAround=True)
+        self["sub_labels"] = self.sub_labels_list
+        self.update_subscription_list()
+
+        # Buttons
+        self["red"] = Label(_("Remove Reader"))
+        self["green"] = Label(_("Test reader"))
+        self["yellow"] = Label(_("Show reader"))
+        self["blue"] = Label(_("Show Reader path"))
+
+        # Actions
+        self["actions"] = ActionMap(
+            ["OkCancelActions", "ColorActions"],
+            {
+                "red": self.dummy,
+                "green": self.dummy,
+                "yellow": self.dummy,
+                "blue": self.dummy,
+                "ok": self.print_selected_label,
+                "cancel": self.close,
+            },
+            -1,
+        )
+
+    def dummy(self):
+        self.session.open(MessageBox, _("This button is not linked yet."), MessageBox.TYPE_INFO, timeout=3)
+
+    def update_subscription_list(self):
+        labels = self.get_subscription_labels()
+        items = []
+        if labels == "No subscription files found.":
+            items.append(("No subscription files found.", ""))
+        else:
+            for line in labels.split("\n\n"):
+                parts = line.split("--->")
+                if len(parts) == 2:
+                    items.append((parts[1].strip(), parts[1].strip()))
+        self.sub_labels_list.setList(items)
+
+    def print_selected_label(self):
+        selected = self.sub_labels_list.getCurrent()
+        if selected:
+            label_name = selected[1]
+            print("Selected label:", label_name)
+            self.session.open(MessageBox, _("Selected: %s" % label_name), MessageBox.TYPE_INFO, 3)
+
+    def read_labels_from_file(self, path):
+        found = []
+        try:
+            with open(path, "r") as f:
+                content = f.read()
+            matches = re.findall(r"label\s*=\s*(.+)", content, re.IGNORECASE)
+            for m in matches:
+                found.append("%s ---> %s\n" % (path, m.strip()))
+        except Exception as e:
+            found.append("%s ERROR: %s\n" % (path, str(e)))
+        return found
+
+    def get_subscription_labels(self):
+        # Directories and files
+        dirs = ["/media/hdd/ElieSatPanel", "/media/usb/ElieSatPanel", "/media/mmc/ElieSatPanel"]
+        files = ["subscription.txt"]
+        # Full file paths
+        single_files = ["/etc/tuxbox/config/oscam.server", "/etc/tuxbox/config/ncam.server"]
+
+        labels_found = []
+
+        # Read from directories
+        for d in dirs:
+            for fname in files:
+                path = os.path.join(d, fname)
+                if os.path.exists(path):
+                    labels_found.extend(self.read_labels_from_file(path))
+
+        # Read from single file paths
+        for path in single_files:
+            if os.path.exists(path):
+                labels_found.extend(self.read_labels_from_file(path))
+
+        if not labels_found:
+            return "No subscription files found."
+        return "\n\n".join(labels_found)
