@@ -3,6 +3,7 @@ import os
 import re
 from datetime import datetime
 import gettext
+import socket
 
 from Screens.Screen import Screen
 from Screens.MessageBox import MessageBox
@@ -553,21 +554,9 @@ class GreenJobScreen(Screen):
             return "No subscription files found."
         return "\n\n".join(labels_found)
 
-# -*- coding: utf-8 -*-
-import os
-import re
-import socket
-from Screens.Screen import Screen
-from Screens.MessageBox import MessageBox
-from Components.ActionMap import ActionMap
-from Components.Label import Label
-from Components.MenuList import MenuList
-from Plugins.Extensions.ElieSatPanel.__init__ import Version
-from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
-    get_local_ip, check_internet, get_image_name,
-    get_python_version, get_storage_info, get_ram_info
-)
-
+# ----------------------------
+# BlueJobScreen
+# ----------------------------
 
 class BlueJobScreen(Screen):
     skin = """
@@ -784,4 +773,3 @@ class BlueJobScreen(Screen):
             passwd.group(1).strip() if passwd else "N/A",
         )
         self.session.open(MessageBox, msg, MessageBox.TYPE_INFO, 10)
-
