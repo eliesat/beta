@@ -1,4 +1,45 @@
 # -*- coding: utf-8 -*-
+import os
+import sys
+import math
+import socket
+import subprocess
+from sys import version_info
+from threading import Timer
+
+from Plugins.Plugin import PluginDescriptor
+from skin import parseColor
+from Screens.Screen import Screen
+from Screens.MessageBox import MessageBox
+from Screens.InputBox import InputBox
+from Tools.LoadPixmap import LoadPixmap
+from Tools.Directories import resolveFilename, SCOPE_PLUGINS, fileExists
+from Components.ActionMap import ActionMap
+from Components.Label import Label
+from Components.GUIComponent import GUIComponent
+from Components.MultiContent import (
+    MultiContentEntryText,
+    MultiContentEntryPixmap,
+    MultiContentEntryPixmapAlphaTest,
+)
+from Components.ConfigList import ConfigListScreen
+from Components.config import ConfigText, getConfigListEntry
+from enigma import (
+    eListboxPythonMultiContent,
+    eListbox,
+    ePixmap,
+    eLabel,
+    eSize,
+    ePoint,
+    gFont,
+    getDesktop,
+    BT_SCALE,
+    BT_KEEP_ASPECT_RATIO,
+    BT_ALIGN_CENTER,
+    RT_HALIGN_CENTER,
+    RT_VALIGN_CENTER,
+)
+
 from Plugins.Extensions.ElieSatPanel.__init__ import Version
 from Plugins.Extensions.ElieSatPanel.menus.Console import Console
 from Plugins.Extensions.ElieSatPanel.menus.Iptvadder import Iptvadder
@@ -24,46 +65,6 @@ from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
     get_python_version,
     get_storage_info,
     get_ram_info,
-)
-
-import os
-import socket
-import sys
-import math
-import subprocess
-from Plugins.Plugin import PluginDescriptor
-from skin import parseColor
-from Screens.InputBox import InputBox
-from Screens.Screen import Screen
-from Screens.MessageBox import MessageBox
-from sys import version_info
-from Tools.LoadPixmap import LoadPixmap
-from Tools.Directories import resolveFilename, SCOPE_PLUGINS, fileExists
-from threading import Timer
-from Components.ActionMap import ActionMap
-from Components.Label import Label
-from Components.GUIComponent import GUIComponent
-from Components.MultiContent import (
-    MultiContentEntryText,
-    MultiContentEntryPixmap,
-    MultiContentEntryPixmapAlphaTest,
-)
-from Components.ConfigList import ConfigListScreen
-from Components.config import ConfigText, getConfigListEntry
-from enigma import (
-    eListboxPythonMultiContent,
-    eListbox,
-    ePixmap,
-    eLabel,
-    eSize,
-    ePoint,
-    gFont,
-    getDesktop,
-    BT_SCALE,
-    BT_KEEP_ASPECT_RATIO,
-    BT_ALIGN_CENTER,
-    RT_HALIGN_CENTER,
-    RT_VALIGN_CENTER,
 )
 
 PY3 = version_info[0] == 3
