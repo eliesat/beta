@@ -433,8 +433,7 @@ class GreenJobScreen(Screen):
             scrollbarMode="showOnDemand"
             font="Bold;30"
             foregroundColor="yellow"
-            backgroundColor="#000000"
-            transparent="0"
+            transparent="1"
             itemHeight="50" />
     </screen>
     """
@@ -514,11 +513,19 @@ class GreenJobScreen(Screen):
         try:
             with open(path, "r") as f:
                 content = f.read()
-            matches = re.findall(r"label\s*=\s*(.+)", content, re.IGNORECASE)
-            for m in matches:
-                found.append("%s ---> %s\n" % (path, m.strip()))
+            # Split content into [reader] blocks
+            reader_blocks = re.findall(r"\[reader\](.*?)(?=\n\[|$)", content, re.DOTALL | re.IGNORECASE)
+            for block in reader_blocks:
+                label_match = re.search(r"label\s*=\s*(.+)", block, re.IGNORECASE)
+                user_match = re.search(r"user\s*=\s*(.+)", block, re.IGNORECASE)
+                password_match = re.search(r"password\s*=\s*(.+)", block, re.IGNORECASE)
+                
+                # Only show if user or password is present
+                if label_match and (user_match or password_match):
+                    label_text = label_match.group(1).strip()
+                    found.append(f"{path} ---> {label_text}\n")
         except Exception as e:
-            found.append("%s ERROR: %s\n" % (path, str(e)))
+            found.append(f"{path} ERROR: {str(e)}\n")
         return found
 
     def get_subscription_labels(self):
@@ -635,8 +642,7 @@ class BlueJobScreen(Screen):
             scrollbarMode="showOnDemand"
             font="Bold;30"
             foregroundColor="yellow"
-            backgroundColor="#000000"
-            transparent="0"
+            transparent="1"
             itemHeight="50" />
     </screen>
     """
@@ -716,11 +722,19 @@ class BlueJobScreen(Screen):
         try:
             with open(path, "r") as f:
                 content = f.read()
-            matches = re.findall(r"label\s*=\s*(.+)", content, re.IGNORECASE)
-            for m in matches:
-                found.append("%s ---> %s\n" % (path, m.strip()))
+            # Split content into [reader] blocks
+            reader_blocks = re.findall(r"\[reader\](.*?)(?=\n\[|$)", content, re.DOTALL | re.IGNORECASE)
+            for block in reader_blocks:
+                label_match = re.search(r"label\s*=\s*(.+)", block, re.IGNORECASE)
+                user_match = re.search(r"user\s*=\s*(.+)", block, re.IGNORECASE)
+                password_match = re.search(r"password\s*=\s*(.+)", block, re.IGNORECASE)
+                
+                # Only show if user or password is present
+                if label_match and (user_match or password_match):
+                    label_text = label_match.group(1).strip()
+                    found.append(f"{path} ---> {label_text}\n")
         except Exception as e:
-            found.append("%s ERROR: %s\n" % (path, str(e)))
+            found.append(f"{path} ERROR: {str(e)}\n")
         return found
 
     def get_subscription_labels(self):
@@ -747,3 +761,4 @@ class BlueJobScreen(Screen):
         if not labels_found:
             return "No subscription files found."
         return "\n\n".join(labels_found)
+
