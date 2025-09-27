@@ -313,11 +313,10 @@ class Cccamadder(Screen, ConfigListScreen):
         label_value = self.label_custom.value if self.label_choice.value == "Custom" else self.label_choice.value
 
         # Build reader entry
-        new_entry = f"[reader]\nlabel = {label_value}\nprotocol = {proto}\ndevice = {self.host.value},{self.port.value}\nuser = {self.user.value}\npassword = {self.passw.value}\n"
-        if proto == "cccam":
-            new_entry += f"inactivitytimeout = {self.inactivitytimeout.value}\ngroup = {self.group.value}\ndisablecrccws = {self.disablecrccws.value}\ncccversion = {self.cccamversion.value}\ncccwantemu = {self.cccwantemu.value}\nccckeepalive = {self.ccckeepalive.value}\naudisabled = {self.audisabled.value}\n\n"
-        else:
-            new_entry += f"key = {self.key.value}\ndisableserverfilter = {self.disableserverfilter.value}\nconnectoninit = {self.connectoninit.value}\ngroup = {self.group.value}\ndisablecrccws = {self.disablecrccws.value}\n\n"
+        new_entry = self.create_reader_block(proto, label_value)
+
+        # Always finish with two newlines to separate readers
+        new_entry = new_entry.strip() + "\n\n"
 
         # Files to check/write
         target_files = [
@@ -337,24 +336,17 @@ class Cccamadder(Screen, ConfigListScreen):
                 continue
 
             # Check if reader exists
-            reader_exists = False
-            try:
-                with open(file_path, "r") as f:
-                    content = f.read()
-                blocks = content.split("[reader]")
-                for block in blocks:
-                    if f"{self.host.value},{self.port.value}" in block and self.user.value in block and self.passw.value in block:
-                        reader_exists = True
-                        break
-            except Exception as e:
-                summary += f"Error reading {file_path}: {str(e)}\n"
-                continue
-
+            reader_exists = self.reader_exists(file_path)
             if reader_exists:
                 summary += f"Reader already exists in: {file_path}\n"
             else:
                 try:
                     with open(file_path, "a") as f:
+                        # Ensure previous reader ended with a blank line
+                        with open(file_path, "r") as fr:
+                            content = fr.read()
+                        if not content.endswith("\n\n") and len(content.strip()) > 0:
+                            f.write("\n")
                         f.write(new_entry)
                     summary += f"Reader added to: {file_path}\n"
                 except Exception as e:
@@ -363,6 +355,50 @@ class Cccamadder(Screen, ConfigListScreen):
         if not summary:
             summary = "No files found or updated."
         self.session.open(MessageBox, summary, MessageBox.TYPE_INFO, timeout=10)
+
+    def create_reader_block(self, proto, label_value):
+        new_entry = (
+            f"[reader]\n"
+            f"label = {label_value}\n"
+            f"protocol = {proto}\n"
+            f"device = {self.host.value},{self.port.value}\n"
+            f"user = {self.user.value}\n"
+            f"password = {self.passw.value}\n"
+        )
+        if proto == "cccam":
+            new_entry += (
+               f"inactivitytimeout = {self.inactivitytimeout.value}\n"
+               f"group = {self.group.value}\n"
+               f"disablecrccws = {self.disablecrccws.value}\n"
+               f"cccversion = {self.cccamversion.value}\n"
+               f"cccwantemu = {self.cccwantemu.value}\n"
+               f"ccckeepalive = {self.ccckeepalive.value}\n"
+               f"audisabled = {self.audisabled.value}\n"
+            )
+        else:
+            new_entry += (
+               f"key = {self.key.value}\n"
+               f"disableserverfilter = {self.disableserverfilter.value}\n"
+               f"connectoninit = {self.connectoninit.value}\n"
+               f"group = {self.group.value}\n"
+               f"disablecrccws = {self.disablecrccws.value}\n"
+            )
+        return new_entry
+
+    def reader_exists(self, file_path):
+        try:
+            with open(file_path, "r") as f:
+                content = f.read()
+            blocks = content.split("[reader]")
+            for block in blocks:
+                if (f"{self.host.value},{self.port.value}" in block and
+                   self.user.value in block and
+                   self.passw.value in block):
+                    return True
+        except Exception:
+            return False
+        return False
+
     # ----------------------------
     # Panel folder detection
     # ----------------------------
