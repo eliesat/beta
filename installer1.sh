@@ -5,8 +5,8 @@ clear >/dev/null 2>&1
 #configuration
 ###########################################
 plugin=beta-main
-version='3.21'
-changelog='1.26.09.2025 / cccamadder updated adding reader works well'
+version='3.22'
+changelog='1.26.09.2025 / adding reader fixed'
 url=https://github.com/eliesat/beta/archive/main.tar.gz
 package=/tmp/$plugin.tar.gz
 rm -rf /tmp/$plugin.tar.gz >/dev/null 2>&1
