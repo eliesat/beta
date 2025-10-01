@@ -6,6 +6,8 @@ import socket
 import subprocess
 from sys import version_info
 from threading import Timer
+import requests
+import hashlib
 
 from Plugins.Plugin import PluginDescriptor
 from skin import parseColor
@@ -544,35 +546,9 @@ class Toolsp(Screen):
         self["left_bar"] = Label(vertical_left)
         self["right_bar"] = Label(vertical_right)
 
-        packages = []
-        try:
-            panels_file = resolveFilename(
-                SCOPE_PLUGINS,
-                "Extensions/ElieSatPanel/assets/data/panels"
-            )
-            with open(panels_file, "r", encoding="utf-8") as f:
-                lines = f.read().splitlines()
+        # Load panels from file
+        self.load_panels()
 
-            name, version, desc = "", "", ""
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                if line.startswith("Package:"):
-                    name = line.split(":", 1)[1].strip()
-                elif line.startswith("Version:"):
-                    ver_line = line.split(":", 1)[1].strip()
-                    parts = ver_line.split(None, 1)
-                    version = parts[0]
-                    desc = parts[1] if len(parts) > 1 else ""
-                    packages.append((f"{name}-{version}", desc))
-            if not packages:
-                packages.append(("No packages found.", ""))
-        except Exception as e:
-            packages.append((f"Error reading panels file: {str(e)}", ""))
-
-        self.menuList = packages
-        self["menu"].setList(self.menuList)
         self["menu"].onSelectionChanged.append(self.updateDescription)
         self["menu"].onSelectionChanged.append(self.updatePageInfo)
         self.updateDescription()
@@ -595,6 +571,14 @@ class Toolsp(Screen):
             -1,
         )
 
+        # ----------------- ADDED: Check and update panels on plugin start -----------------
+        def start_update_panels():
+            if self.update_data():  # Update panels if missing or changed
+                self.load_panels()   # Reload menu dynamically
+
+        Timer(1, start_update_panels).start()  # Slight delay to ensure session is ready
+
+    # --- Navigation ---
     def left(self): self["menu"].left()
     def right(self): self["menu"].right()
     def up(self): self["menu"].up()
@@ -709,4 +693,66 @@ class Toolsp(Screen):
 
     def myCallback(self, result):
         print("[ElieSatPanel] Update finished:", result)
+
+    # ----------------- ADDED METHOD -----------------
+    def update_data(self):
+        url = 'https://raw.githubusercontent.com/eliesat/beta/refs/heads/main/assets/data/panels'
+        file_path = '/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/data/panels'
+        try:
+            response = requests.get(url)
+            if response.status_code != 200:
+                print('[Toolsp update_data] Failed to download data file from GitHub')
+                return False
+            if os.path.exists(file_path):
+                with open(file_path, 'rb') as f:
+                    existing_hash = hashlib.md5(f.read()).hexdigest()
+                new_hash = hashlib.md5(response.content).hexdigest()
+                if existing_hash == new_hash:
+                    print('[Toolsp update_data] Data file already up to date')
+                    return False
+                else:
+                    print('[Toolsp update_data] Data file content changed, updating...')
+            else:
+                print('[Toolsp update_data] Data file missing, downloading...')
+            with open(file_path, 'wb') as f:
+                f.write(response.content)
+            print('[Toolsp update_data] Data file updated successfully')
+            return True
+        except Exception as e:
+            print(f'[Toolsp update_data] Error: {e}')
+            return False
+
+    # ----------------- ADDED METHOD -----------------
+    def load_panels(self):
+        packages = []
+        try:
+            panels_file = resolveFilename(
+                SCOPE_PLUGINS,
+                "Extensions/ElieSatPanel/assets/data/panels"
+            )
+            with open(panels_file, "r", encoding="utf-8") as f:
+                lines = f.read().splitlines()
+            name, version, desc = "", "", ""
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                if line.startswith("Package:"):
+                    name = line.split(":", 1)[1].strip()
+                elif line.startswith("Version:"):
+                    ver_line = line.split(":", 1)[1].strip()
+                    parts = ver_line.split(None, 1)
+                    version = parts[0]
+                    desc = parts[1] if len(parts) > 1 else ""
+                    packages.append((f"{name}-{version}", desc))
+            if not packages:
+                packages.append(("No packages found.", ""))
+        except Exception as e:
+            packages.append((f"Error reading panels file: {str(e)}", ""))
+
+        self.menuList = packages
+        self["menu"].setList(self.menuList)
+        self.updateDescription()
+        self.updatePageInfo()
+        print("[Toolsp load_panels] Menu reloaded successfully")
 
