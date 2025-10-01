@@ -183,7 +183,7 @@ class FlexibleMenu(GUIComponent):
             else:
                 attribs.append((attrib, value))
 
-        self.l.setFont(0, gFont("Bold", 32))
+        self.l.setFont(0, gFont("Bold", 30))
         self.l.setItemHeight(self.panelheight)
         self.skinAttributes = attribs
         self.buildEntry()
