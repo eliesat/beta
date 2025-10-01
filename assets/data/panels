@@ -34,15 +34,15 @@ Version: 5.8r2     بانل خدمات متنوعة للصورة
 Status: Pan
 Epanel='https://gitlab.com/eliesat/extensions/-/raw/main/epanel/epanel.sh'
 
-Package: Levi45addonmanager
+Package: Addonmanager
 Version: 10.2.r1     بانل تسطيب اضافات
 Status: Pan
-Levi45addonmanager='https://gitlab.com/eliesat/extensions/-/raw/main/levi45-addon-manager/levi45-addon-manager.sh'
+Addonmanager='https://gitlab.com/eliesat/extensions/-/raw/main/levi45-addon-manager/levi45-addon-manager.sh'
 
-Package: Levi45multicammanager
+Package: Multicammanager
 Version: 10.2.r2     بانل تسطيب كامات
 Status: Pan
-Levi45multicammanager='https://gitlab.com/eliesat/extensions/-/raw/main/levi45-addon-manager/levi45multicammanager.sh'
+Multicammanager='https://gitlab.com/eliesat/extensions/-/raw/main/levi45-addon-manager/levi45multicammanager.sh'
 
 Package: Linuxsat-panel
 Version: 2.8.2     بانل تسطيب اضافات
