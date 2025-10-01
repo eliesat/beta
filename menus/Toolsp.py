@@ -609,7 +609,8 @@ class Toolsp(Screen):
     def up(self): self["menu"].up()
     def down(self): self["menu"].down()
 
-    # --- OK press ---
+
+
     def ok(self):
        try:
               panels_file = resolveFilename(
@@ -620,8 +621,16 @@ class Toolsp(Screen):
               with open(panels_file, "r", encoding="utf-8") as f:
                      lines = f.read().splitlines()
 
-              packages = []
-              name, version, desc = "", "", ""
+              selected = self["menu"].getCurrent()
+              if not selected:
+                     return
+
+              # Use full package name from panels file
+              selected_label = selected[0]  # e.g., "Linuxsat-panel-2.8.2"
+              selected_name = selected_label.split("-")[0]  # first part
+              
+              current_pkg = ""
+              script_url = None
 
               for line in lines:
                      line = line.strip()
@@ -629,34 +638,29 @@ class Toolsp(Screen):
                             continue
 
                      if line.startswith("Package:"):
-                            name = line.split(":", 1)[1].strip()
+                            current_pkg = line.split(":", 1)[1].strip()
+                     elif "=" in line and current_pkg:
+                            pkg_name, url = line.split("=", 1)
+                            pkg_name = pkg_name.strip()
+                            url = url.strip().strip("'\"")
+                            # Match full current package name from Package: line
+                            if pkg_name == current_pkg and url.endswith(".sh"):
+                                   # Only run the script if current_pkg matches the menu selection
+                                   if current_pkg in selected_label:
+                                          script_url = url
+                                          break
 
-                     elif line.startswith("Version:"):
-                            ver_line = line.split(":", 1)[1].strip()
-                            parts = ver_line.split(None, 1)
-                            version = parts[0]
-                            desc = parts[1] if len(parts) > 1 else ""
-                            packages.append((f"{name}-{version}", desc))
-
-              if not packages:
-                     packages.append(("No packages found.", ""))
-
-              full_text = "[\n       " + ",\n       ".join(f'("{p[0]}", "{p[1]}")' for p in packages) + "\n]"
-
-              self.session.open(
-                     MessageBox,
-                     full_text,
-                     type=MessageBox.TYPE_INFO,
-                     timeout=20
-              )
+              if script_url:
+                     self.session.open(
+                            Console,
+                            title="Running %s..." % selected_label,
+                            cmdlist=['wget -q "--no-check-certificate" %s -O - | /bin/sh' % script_url],
+                            closeOnSuccess=False
+                     )
 
        except Exception as e:
-              self.session.open(
-                     MessageBox,
-                     f"Error reading panels file:\n{str(e)}",
-                     type=MessageBox.TYPE_ERROR,
-                     timeout=10
-              )
+              print("[Toolsp ok] Error:", e)
+
 
     # --- Color button methods ---
     def openIptvadder(self):
