@@ -5,8 +5,8 @@ clear >/dev/null 2>&1
 #configuration
 ###########################################
 plugin=beta-main
-version='3.30'
-changelog='1.01.10.2025 / tools-panel autoupdate'
+version='3.31'
+changelog='1.02.10.2025 / tools-panel menu and ok button fixed'
 url=https://github.com/eliesat/beta/archive/main.tar.gz
 package=/tmp/$plugin.tar.gz
 rm -rf /tmp/$plugin.tar.gz >/dev/null 2>&1
