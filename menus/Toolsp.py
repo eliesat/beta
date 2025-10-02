@@ -77,13 +77,13 @@ class FlexibleMenu(GUIComponent):
         self.total_pages = 1
 
         # Defaults
-        self.itemPerPage = 24
+        self.itemPerPage = 18
         self.columns = 6
         self.margin = 10
         self.boxwidth = 200
-        self.boxheight = 240  # enough for 150px icon + text
+        self.boxheight = 220
         self.activeboxwidth = 220
-        self.activeboxheight = 260
+        self.activeboxheight = 240
         self.panelheight = 700
 
         # pager icons
@@ -198,11 +198,13 @@ class FlexibleMenu(GUIComponent):
         instance.setContent(self.l)
         instance.setSelectionEnable(0)
         instance.setScrollbarMode(eListbox.showNever)
+
         # Pager controls
         self.pager_left = ePixmap(self.instance)
         self.pager_center = eLabel(self.instance)
         self.pager_right = ePixmap(self.instance)
         self.pagelabel = eLabel(self.instance)
+
         self.pagelabel.setFont(gFont("Icons", 18))
         self.pagelabel.setVAlign(eLabel.alignCenter)
         self.pagelabel.setHAlign(eLabel.alignCenter)
@@ -211,6 +213,7 @@ class FlexibleMenu(GUIComponent):
         self.pagelabel.setZPosition(100)
         self.pagelabel.move(ePoint(0, self.panelheight - 10))
         self.pagelabel.resize(eSize(1660, 20))
+
         self.pager_center.setBackgroundColor(parseColor("#00272727"))
         self.pager_left.resize(eSize(20, 20))
         self.pager_right.resize(eSize(20, 20))
@@ -251,132 +254,125 @@ class FlexibleMenu(GUIComponent):
 
     def buildEntry(self):
         self.entries.clear()
-        if not self.list:
-            return
+        if len(self.list) > 0:
+            width = self.boxwidth + self.margin
+            height = self.boxheight + self.margin
+            xoffset = (self.activeboxwidth - self.boxwidth) // 2 if self.activeboxwidth > self.boxwidth else 0
+            yoffset = (self.activeboxheight - self.boxheight) // 2 if self.activeboxheight > self.boxheight else 0
 
-        width = self.boxwidth + self.margin
-        height = self.boxheight + self.margin
-        xoffset = (self.activeboxwidth - self.boxwidth) // 2 if self.activeboxwidth > self.boxwidth else 0
-        yoffset = (self.activeboxheight - self.boxheight) // 2 if self.activeboxheight > self.boxheight else 0
-        x = 0
-        y = 0
-        count = 0
-        page = 1
-        list_dummy = []
-        self.total_pages = int(math.ceil(float(len(self.list)) / self.itemPerPage)) if self.itemPerPage > 0 else 1
+            self.total_pages = int(math.ceil(float(len(self.list)) / self.itemPerPage)) if self.itemPerPage > 0 else 1
 
-        for elem in self.list:
-            try:
-                full_name = elem[0]
-                desc = elem[1] if len(elem) > 1 else ""
-            except Exception:
-                continue
-
-            if "-" in full_name:
-                pkg_name, pkg_version = full_name.rsplit("-", 1)
-            else:
-                pkg_name = full_name
-                pkg_version = ""
-
-            if count >= self.itemPerPage:
-                count = 0
-                page += 1
-                y = 0
-
-            logo = None
-            try:
-                logoPath = resolveFilename(
-                    SCOPE_PLUGINS,
-                    "Extensions/ElieSatPanel/assets/compet/icons/tools-panel.png",
-                )
-                if not fileExists(logoPath):
-                    logoPath = resolveFilename(
-                        SCOPE_PLUGINS,
-                        "Extensions/ElieSatPanel/assets/compet/icons/default.png",
-                    )
-                if fileExists(logoPath):
-                    logo = LoadPixmap(logoPath)
-            except Exception:
-                logo = None
-
-            # Dynamic heights
-            icon_size = 150
-            text1_height = 30
-            text2_height = 30
-            padding = 10
-            active_height = icon_size + text1_height + text2_height + 3*padding
-            inactive_height = active_height - 20
-
-            self.entries[full_name] = {
-                "active": (
-                    MultiContentEntryPixmap(
-                        pos=(x, y),
-                        size=(self.activeboxwidth, active_height),
-                        png=self.selPixmap,
-                        flags=BT_SCALE,
-                    ),
-                    MultiContentEntryPixmapAlphaTest(
-                        pos=(x, y),
-                        size=(self.activeboxwidth, icon_size),
-                        png=logo,
-                        flags=BT_SCALE | BT_ALIGN_CENTER | BT_KEEP_ASPECT_RATIO,
-                    ),
-                    MultiContentEntryText(
-                        pos=(x, y + icon_size + padding),
-                        size=(self.activeboxwidth, text1_height),
-                        font=0,
-                        text=pkg_name,
-                        flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER,
-                        color=0x00FF8C00
-                    ),
-                    MultiContentEntryText(
-                        pos=(x, y + icon_size + padding + text1_height + padding),
-                        size=(self.activeboxwidth, text2_height),
-                        font=0,
-                        text=pkg_version,
-                        flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER,
-                        color=0x00FF8C00
-                    ),
-                ),
-                "u_active": (
-                    MultiContentEntryPixmap(
-                        pos=(x + xoffset, y + yoffset),
-                        size=(self.boxwidth, inactive_height),
-                        png=self.itemPixmap,
-                        flags=BT_SCALE,
-                    ),
-                    MultiContentEntryPixmapAlphaTest(
-                        pos=(x + xoffset, y + yoffset),
-                        size=(self.boxwidth, icon_size),
-                        png=logo,
-                        flags=BT_SCALE | BT_ALIGN_CENTER | BT_KEEP_ASPECT_RATIO,
-                    ),
-                    MultiContentEntryText(
-                        pos=(x + xoffset, y + yoffset + icon_size + padding),
-                        size=(self.boxwidth, text1_height),
-                        font=0,
-                        text=pkg_name,
-                        flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER,
-                    ),
-                    MultiContentEntryText(
-                        pos=(x + xoffset, y + yoffset + icon_size + padding + text1_height + padding),
-                        size=(self.boxwidth, text2_height),
-                        font=0,
-                        text=pkg_version,
-                        flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER,
-                    ),
-                ),
-                "page": page,
-                "desc": desc
-            }
-
-            x += width
-            list_dummy.append(full_name)
-            if len(list_dummy) == self.columns:
-                list_dummy[:] = []
+            for page_index in range(self.total_pages):
                 x = 0
-                y += height
-            count += 1
+                y = 0
+                for idx in range(page_index * self.itemPerPage, min((page_index + 1) * self.itemPerPage, len(self.list))):
+                    elem = self.list[idx]
+                    try:
+                        full_text = elem[0]
+                        desc = elem[1] if len(elem) > 1 else ""
+                    except Exception:
+                        continue
+
+                    if "-" in full_text:
+                        name, version = full_text.rsplit("-", 1)
+                    else:
+                        name = full_text
+                        version = ""
+
+                    key = full_text
+
+                    # Load logo
+                    logo = None
+                    try:
+                        logoPath = resolveFilename(
+                            SCOPE_PLUGINS,
+                            "Extensions/ElieSatPanel/assets/compet/icons/tools-panel.png",
+                        )
+                        if not fileExists(logoPath):
+                            logoPath = resolveFilename(
+                                SCOPE_PLUGINS,
+                                "Extensions/ElieSatPanel/assets/compet/icons/default.png",
+                            )
+                        if fileExists(logoPath):
+                            logo = LoadPixmap(logoPath)
+                    except Exception:
+                        logo = None
+
+                    active_height = self.activeboxheight
+                    inactive_height = self.boxheight
+
+                    page = page_index + 1
+
+                    # Compute text_x to center name under icon for unselected
+                    text_width = self.activeboxwidth
+                    text_x = x + xoffset + (self.boxwidth - text_width) // 2
+
+                    self.entries[key] = {
+                        "active": (
+                            MultiContentEntryPixmap(
+                                pos=(x-5, y-5),
+                                size=(self.activeboxwidth+10, active_height+10),
+                                png=self.selPixmap,
+                                flags=BT_SCALE,
+                            ),
+                            MultiContentEntryPixmapAlphaTest(
+                                pos=(x, y),
+                                size=(self.activeboxwidth, active_height - 60),
+                                png=logo,
+                                flags=BT_SCALE | BT_ALIGN_CENTER | BT_KEEP_ASPECT_RATIO,
+                            ),
+                            MultiContentEntryText(
+                                pos=(x, y + self.activeboxheight - 60),
+                                size=(text_width, 30),
+                                font=0,
+                                text=name,
+                                flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER,
+                                color=0x00FF8C00,
+                            ),
+                            MultiContentEntryText(
+                                pos=(x, y + self.activeboxheight - 30),
+                                size=(text_width, 30),
+                                font=0,
+                                text=version,
+                                flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER,
+                                color=0x00FF8C00,
+                            ),
+                        ),
+                        "u_active": (
+                            MultiContentEntryPixmap(
+                                pos=(x + xoffset, y + yoffset),
+                                size=(self.boxwidth, inactive_height),
+                                png=self.itemPixmap,
+                                flags=BT_SCALE,
+                            ),
+                            MultiContentEntryPixmapAlphaTest(
+                                pos=(x + xoffset, y + yoffset),
+                                size=(self.boxwidth, inactive_height - 60),
+                                png=logo,
+                                flags=BT_SCALE | BT_ALIGN_CENTER | BT_KEEP_ASPECT_RATIO,
+                            ),
+                            MultiContentEntryText(
+                                pos=(text_x, y + yoffset + self.boxheight - 60),
+                                size=(text_width, 30),
+                                font=0,
+                                text=name,
+                                flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER,
+                            ),
+                            MultiContentEntryText(
+                                pos=(text_x, y + yoffset + self.boxheight - 30),
+                                size=(text_width, 30),
+                                font=0,
+                                text=version,
+                                flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER,
+                            ),
+                        ),
+                        "page": page,
+                    }
+
+                    x += width
+                    if (idx % self.columns) == (self.columns - 1):
+                        x = 0
+                        y += height
 
         self.setL()
 
@@ -398,9 +394,11 @@ class FlexibleMenu(GUIComponent):
                 self.current = 0
             current_page = current["page"]
             for _, value in self.entries.items():
-                if current_page == value["page"] and value != current:
-                    res.extend(value["u_active"])
-            res.extend(current["active"])
+                if value["page"] == current_page:
+                    if value == current:
+                        res.extend(value["active"])
+                    else:
+                        res.extend(value["u_active"])
             self.l.setList([res])
             self.setpage()
         else:
@@ -411,7 +409,7 @@ class FlexibleMenu(GUIComponent):
             self.pagetext = ""
             if len(self.list) > 0:
                 for i in range(1, self.total_pages + 1):
-                    if self.getCurrentPage() > 0 and i == self.getCurrentPage():
+                    if i == self.getCurrentPage():
                         self.pagetext += " " + self.selectedicon
                     else:
                         self.pagetext += " " + self.unselectedicon
@@ -454,10 +452,13 @@ class FlexibleMenu(GUIComponent):
 
     def left(self):
         self.move(1, "backwards")
+
     def right(self):
         self.move(1, "forward")
+
     def up(self):
         self.move(self.columns, "backwards")
+
     def down(self):
         if len(self.list) > 0:
             if self.current + self.columns > (len(self.list) - 1) and self.current != (len(self.list) - 1):
@@ -469,7 +470,10 @@ class FlexibleMenu(GUIComponent):
 
     def move(self, step, direction):
         if len(self.list) > 0:
-            self.current = (self.current - step) if direction == "backwards" else (self.current + step)
+            if direction == "backwards":
+                self.current -= step
+            else:
+                self.current += step
             if self.current > (len(self.list) - 1):
                 self.current = 0
             if self.current < 0:
