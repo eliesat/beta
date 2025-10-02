@@ -583,66 +583,83 @@ class Toolsp(Screen):
         Timer(1, start_update_panels).start()  # Slight delay to ensure session is ready
 
     # --- Navigation ---
-    def left(self): self["menu"].left()
-    def right(self): self["menu"].right()
-    def up(self): self["menu"].up()
-    def down(self): self["menu"].down()
+    def left(self):
+       self["menu"].left()
+
+    def right(self):
+       self["menu"].right()
+
+    def up(self):
+       self["menu"].up()
+
+    def down(self):
+       self["menu"].down()
 
     # --- OK button handler ---
     def ok(self):
-        try:
-            panels_file = resolveFilename(
-                SCOPE_PLUGINS,
-                "Extensions/ElieSatPanel/assets/data/panels"
-            )
-            with open(panels_file, "r", encoding="utf-8") as f:
-                lines = f.read().splitlines()
-            selected = self["menu"].getCurrent()
-            if not selected:
-                return
-            selected_label = selected[0]
+       try:
+              panels_file = resolveFilename(
+                     SCOPE_PLUGINS,
+                     "Extensions/ElieSatPanel/assets/data/panels"
+              )
+              with open(panels_file, "r", encoding="utf-8") as f:
+                     lines = f.read().splitlines()
 
-            current_pkg = ""
-            script_url = None
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                if line.startswith("Package:"):
-                    current_pkg = line.split(":", 1)[1].strip()
-                elif "=" in line and current_pkg:
-                    pkg_name, url = line.split("=", 1)
-                    pkg_name = pkg_name.strip()
-                    url = url.strip().strip("'\"")
-                    if pkg_name in selected_label and url.endswith(".sh"):
-                        script_url = url
-                        break
-            if script_url:
-                self.session.open(
-                    Console,
-                    title="Running %s..." % selected_label,
-                    cmdlist=['wget -q "--no-check-certificate" %s -O - | /bin/sh' % script_url],
-                    closeOnSuccess=False
-                )
-        except Exception as e:
-            print("[Toolsp ok] Error:", e)
+              selected = self["menu"].getCurrent()
+              if not selected:
+                     return
+              selected_label = selected[0]  # full name with version
+              
+              # Extract exact package name (before the dash-version)
+              if "-" in selected_label:
+                     selected_pkg_name = selected_label.rsplit("-", 1)[0]
+              else:
+                     selected_pkg_name = selected_label
 
-    # --- Color buttons ---
-    def openIptvadder(self):
-        try: self.session.open(Iptvadder)
-        except: self.session.open(MessageBox, "Cannot open Iptvadder.", type=MessageBox.TYPE_ERROR, timeout=5)
+              # --- Parse panels file into blocks ---
+              blocks = []
+              current_block = {}
+              for line in lines:
+                     line = line.strip()
+                     if not line:
+                            continue
+                     if line.startswith("Package:"):
+                            if current_block:
+                                   blocks.append(current_block)
+                            current_block = {"Package": line.split(":",1)[1].strip()}
+                     elif "=" in line and current_block:
+                            key, value = line.split("=",1)
+                            current_block[key.strip()] = value.strip().strip("'\"")
+                     elif line.startswith("Version:") and current_block:
+                            current_block["Version"] = line.split(":",1)[1].strip()
+              if current_block:
+                     blocks.append(current_block)
 
-    def openCccamadder(self):
-        try: self.session.open(Cccamadder)
-        except: self.session.open(MessageBox, "Cannot open Cccamadder.", type=MessageBox.TYPE_ERROR, timeout=5)
+              # --- Find block with exact package name ---
+              script_url = None
+              for blk in blocks:
+                     if blk.get("Package") == selected_pkg_name:
+                            # Find first key with .sh
+                            for key, val in blk.items():
+                                   if key not in ["Package", "Version"] and val.endswith(".sh"):
+                                          script_url = val
+                                          break
+                            break
 
-    def openNews(self):
-        try: self.session.open(News)
-        except: self.session.open(MessageBox, "Cannot open News.", type=MessageBox.TYPE_ERROR, timeout=5)
+              if not script_url:
+                     print("[Toolsp ok] No script found for", selected_label)
+                     return
 
-    def openScripts(self):
-        try: self.session.open(Scripts)
-        except: self.session.open(MessageBox, "Cannot open Scripts.", type=MessageBox.TYPE_ERROR, timeout=5)
+              # --- Run script ---
+              self.session.open(
+                     Console,
+                     title="Running %s..." % selected_label,
+                     cmdlist=['wget -q "--no-check-certificate" %s -O - | /bin/sh' % script_url],
+                     closeOnSuccess=False
+              )
+
+       except Exception as e:
+              print("[Toolsp ok] Error:", e)
 
     # --- Description & Page info ---
     def updateDescription(self):
@@ -759,4 +776,33 @@ class Toolsp(Screen):
         self.updateDescription()
         self.updatePageInfo()
         print("[Toolsp load_panels] Menu reloaded successfully")
+
+    # ----------------- SHORTCUT METHODS -----------------
+    def openIptvadder(self):
+       try:
+              from Plugins.Extensions.ElieSatPanel.Iptvadder import Iptvadder
+              self.session.open(Iptvadder)
+       except Exception as e:
+              print("[Toolsp] Error opening Iptvadder:", e)
+
+    def openCccamadder(self):
+       try:
+              from Plugins.Extensions.ElieSatPanel.Cccamadder import Cccamadder
+              self.session.open(Cccamadder)
+       except Exception as e:
+              print("[Toolsp] Error opening Cccamadder:", e)
+
+    def openNews(self):
+       try:
+              from Plugins.Extensions.ElieSatPanel.News import News
+              self.session.open(News)
+       except Exception as e:
+              print("[Toolsp] Error opening News:", e)
+
+    def openScripts(self):
+       try:
+              from Plugins.Extensions.ElieSatPanel.Scripts import Scripts
+              self.session.open(Scripts)
+       except Exception as e:
+              print("[Toolsp] Error opening Scripts:", e)
 
