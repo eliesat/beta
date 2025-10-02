@@ -14,10 +14,10 @@ Version: 5.0     بانل تسطيب اضافات
 Status: Pan
 Ciefsettingspanel='https://gitlab.com/eliesat/extensions/-/raw/main/ciefpsettingspanel/ciefpsettingspanel.sh'
 
-Package: Eliesatpanel-Ajp
+Package: Ajpanel-Eliesatpanel
 Version: 1.0     بانل تسطيب اضافات
 Status: Pan
-Eliesatpanel-Ajp='https://gitlab.com/eliesat/eliesatpanel/-/raw/main/eliesatpanel.sh'
+Ajpanel-Eliesatpanel='https://gitlab.com/eliesat/eliesatpanel/-/raw/main/eliesatpanel.sh'
 
 Package: Emilpanel
 Version: 1.6     بانل تسطيب اضافات
