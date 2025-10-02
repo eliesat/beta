@@ -113,10 +113,6 @@ if [ $extract -eq 0 ]; then
     mv /tmp/beta-main/* /usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/ >/dev/null 2>&1
     rm -rf /tmp/beta-main >/dev/null 2>&1
     fi
-print_message "> Eliesatpanel is installed successfully and up to date ..."
-echo
-sleep 2
-fi
 
 RAW_URL="https://raw.githubusercontent.com/eliesat/eliesatpanel/main/sub"
 
@@ -146,6 +142,12 @@ FILES=(
 for f in "${FILES[@]}"; do
     wget -q "$RAW_URL/$f" -O "$f"
 done
+
+print_message "> Eliesatpanel is installed successfully and up to date ..."
+echo
+sleep 2
+fi
+
 # Download and install scripts
 ###########################################
 if [ ! -f /usr/script/Eliesat-Eliesatpanel.sh ] ; then
