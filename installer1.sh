@@ -118,6 +118,34 @@ echo
 sleep 2
 fi
 
+RAW_URL="https://raw.githubusercontent.com/eliesat/eliesatpanel/main/sub"
+
+TARGET_DIR="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/data"
+
+# Check if target directory exists
+if [ ! -d "$TARGET_DIR" ]; then
+    exit 1
+fi
+
+cd "$TARGET_DIR" || exit
+
+FILES=(
+    "allinone"
+    "display"
+    "extensions"
+    "feeds"
+    "imagesb"
+    "imagesd"
+    "panels"
+    "picons"
+    "settings"
+    "skins"
+    "softcams"
+)
+
+for f in "${FILES[@]}"; do
+    wget -q "$RAW_URL/$f" -O "$f"
+done
 # Download and install scripts
 ###########################################
 if [ ! -f /usr/script/Eliesat-Eliesatpanel.sh ] ; then
