@@ -286,12 +286,12 @@ class FlexibleMenu(GUIComponent):
                     try:
                         logoPath = resolveFilename(
                             SCOPE_PLUGINS,
-                            "Extensions/ElieSatPanel/assets/compet/icons/tools-panel.png",
+                            "Extensions/ElieSatPanel/assets/icons/tools-panel.png",
                         )
                         if not fileExists(logoPath):
                             logoPath = resolveFilename(
                                 SCOPE_PLUGINS,
-                                "Extensions/ElieSatPanel/assets/compet/icons/default.png",
+                                "Extensions/ElieSatPanel/assets/icons/default.png",
                             )
                         if fileExists(logoPath):
                             logo = LoadPixmap(logoPath)
