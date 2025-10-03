@@ -791,28 +791,24 @@ class Toolsp(Screen):
     # ----------------- SHORTCUT METHODS -----------------
     def openIptvadder(self):
         try:
-            from Plugins.Extensions.ElieSatPanel.Iptvadder import Iptvadder
             self.session.open(Iptvadder)
         except Exception as e:
             print("[Toolsp] Error opening Iptvadder:", e)
 
     def openCccamadder(self):
         try:
-            from Plugins.Extensions.ElieSatPanel.Cccamadder import Cccamadder
             self.session.open(Cccamadder)
         except Exception as e:
             print("[Toolsp] Error opening Cccamadder:", e)
 
     def openNews(self):
         try:
-            from Plugins.Extensions.ElieSatPanel.News import News
             self.session.open(News)
         except Exception as e:
             print("[Toolsp] Error opening News:", e)
 
     def openScripts(self):
         try:
-            from Plugins.Extensions.ElieSatPanel.Scripts import Scripts
             self.session.open(Scripts)
         except Exception as e:
             print("[Toolsp] Error opening Scripts:", e)
