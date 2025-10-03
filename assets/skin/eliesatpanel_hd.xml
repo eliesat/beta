@@ -142,7 +142,7 @@
 
     <!-- Pager dots -->
     <widget name="pagelabel"
-        position="center,530" size="260,25" zPosition="5"
+        position="center,530" size="520,25" zPosition="5"
         font="Regular;18" halign="center" valign="center"
         foregroundColor="orange"
         backgroundColor="#000000"
