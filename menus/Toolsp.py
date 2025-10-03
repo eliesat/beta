@@ -584,82 +584,84 @@ class Toolsp(Screen):
 
     # --- Navigation ---
     def left(self):
-       self["menu"].left()
+        self["menu"].left()
 
     def right(self):
-       self["menu"].right()
+        self["menu"].right()
 
     def up(self):
-       self["menu"].up()
+        self["menu"].up()
 
     def down(self):
-       self["menu"].down()
+        self["menu"].down()
 
     # --- OK button handler ---
     def ok(self):
-       try:
-              panels_file = resolveFilename(
-                     SCOPE_PLUGINS,
-                     "Extensions/ElieSatPanel/assets/data/panels"
-              )
-              with open(panels_file, "r", encoding="utf-8") as f:
-                     lines = f.read().splitlines()
+        try:
+            panels_file = resolveFilename(
+                SCOPE_PLUGINS,
+                "Extensions/ElieSatPanel/assets/data/panels"
+            )
+            with open(panels_file, "r", encoding="utf-8") as f:
+                lines = f.read().splitlines()
 
-              selected = self["menu"].getCurrent()
-              if not selected:
-                     return
-              selected_label = selected[0]  # full name with version
-              
-              # Extract exact package name (before the dash-version)
-              if "-" in selected_label:
-                     selected_pkg_name = selected_label.rsplit("-", 1)[0]
-              else:
-                     selected_pkg_name = selected_label
+            selected = self["menu"].getCurrent()
+            if not selected:
+                return
+            selected_label = selected[0]  # full name with version
+            
+            # Extract exact package name (before the dash-version)
+            if "-" in selected_label:
+                selected_pkg_name = selected_label.rsplit("-", 1)[0]
+            else:
+                selected_pkg_name = selected_label
 
-              # --- Parse panels file into blocks ---
-              blocks = []
-              current_block = {}
-              for line in lines:
-                     line = line.strip()
-                     if not line:
-                            continue
-                     if line.startswith("Package:"):
-                            if current_block:
-                                   blocks.append(current_block)
-                            current_block = {"Package": line.split(":",1)[1].strip()}
-                     elif "=" in line and current_block:
-                            key, value = line.split("=",1)
-                            current_block[key.strip()] = value.strip().strip("'\"")
-                     elif line.startswith("Version:") and current_block:
-                            current_block["Version"] = line.split(":",1)[1].strip()
-              if current_block:
-                     blocks.append(current_block)
+            # --- Parse panels file into blocks ---
+            blocks = []
+            current_block = {}
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                if line.startswith("Package:"):
+                    if current_block:
+                        blocks.append(current_block)
+                    current_block = {"Package": line.split(":",1)[1].strip()}
+                elif "=" in line and current_block:
+                    key, value = line.split("=",1)
+                    current_block[key.strip()] = value.strip().strip("'\"")
+                elif line.startswith("Version:") and current_block:
+                    current_block["Version"] = line.split(":",1)[1].strip()
+                elif line.startswith("Status:") and current_block:
+                    current_block["Status"] = line.split(":",1)[1].strip()
+            if current_block:
+                blocks.append(current_block)
 
-              # --- Find block with exact package name ---
-              script_url = None
-              for blk in blocks:
-                     if blk.get("Package") == selected_pkg_name:
-                            # Find first key with .sh
-                            for key, val in blk.items():
-                                   if key not in ["Package", "Version"] and val.endswith(".sh"):
-                                          script_url = val
-                                          break
+            # --- Find block with exact package name ---
+            script_url = None
+            for blk in blocks:
+                if blk.get("Package") == selected_pkg_name and blk.get("Status","").lower() == "pan":
+                    # Find first key with .sh
+                    for key, val in blk.items():
+                        if key not in ["Package", "Version", "Status"] and val.endswith(".sh"):
+                            script_url = val
                             break
+                    break
 
-              if not script_url:
-                     print("[Toolsp ok] No script found for", selected_label)
-                     return
+            if not script_url:
+                print("[Toolsp ok] No script found for", selected_label)
+                return
 
-              # --- Run script ---
-              self.session.open(
-                     Console,
-                     title="Running %s..." % selected_label,
-                     cmdlist=['wget -q "--no-check-certificate" %s -O - | /bin/sh' % script_url],
-                     closeOnSuccess=False
-              )
+            # --- Run script ---
+            self.session.open(
+                Console,
+                title="Running %s..." % selected_label,
+                cmdlist=['wget -q "--no-check-certificate" %s -O - | /bin/sh' % script_url],
+                closeOnSuccess=False
+            )
 
-       except Exception as e:
-              print("[Toolsp ok] Error:", e)
+        except Exception as e:
+            print("[Toolsp ok] Error:", e)
 
     # --- Description & Page info ---
     def updateDescription(self):
@@ -717,7 +719,7 @@ class Toolsp(Screen):
 
     # ----------------- ADDED METHOD -----------------
     def update_data(self):
-        url = 'https://raw.githubusercontent.com/eliesat/beta/refs/heads/main/assets/data/panels'
+        url = 'https://raw.githubusercontent.com/eliesat/eliesatpanel/refs/heads/main/sub/panels'
         file_path = '/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/data/panels'
         try:
             response = requests.get(url)
@@ -743,7 +745,7 @@ class Toolsp(Screen):
             print(f'[Toolsp update_data] Error: {e}')
             return False
 
-    # ----------------- ADDED METHOD -----------------
+    # ----------------- FIXED METHOD -----------------
     def load_panels(self):
         packages = []
         try:
@@ -753,7 +755,8 @@ class Toolsp(Screen):
             )
             with open(panels_file, "r", encoding="utf-8") as f:
                 lines = f.read().splitlines()
-            name, version, desc = "", "", ""
+
+            name, version, desc, status = "", "", "", ""
             for line in lines:
                 line = line.strip()
                 if not line:
@@ -765,9 +768,17 @@ class Toolsp(Screen):
                     parts = ver_line.split(None, 1)
                     version = parts[0]
                     desc = parts[1] if len(parts) > 1 else ""
-                    packages.append((f"{name}-{version}", desc))
+                elif line.startswith("Status:"):
+                    status = line.split(":", 1)[1].strip()
+                    # ✅ Only add if Status = Pan
+                    if status.lower() == "pan":
+                        packages.append((f"{name}-{version}", desc))
+                    # Reset after processing one block
+                    name, version, desc, status = "", "", "", ""
+
             if not packages:
-                packages.append(("No packages found.", ""))
+                packages.append(("No packages found with Status: Pan", ""))
+
         except Exception as e:
             packages.append((f"Error reading panels file: {str(e)}", ""))
 
@@ -775,34 +786,34 @@ class Toolsp(Screen):
         self["menu"].setList(self.menuList)
         self.updateDescription()
         self.updatePageInfo()
-        print("[Toolsp load_panels] Menu reloaded successfully")
+        print(f"[Toolsp load_panels] Loaded {len(packages)} Pan packages")
 
     # ----------------- SHORTCUT METHODS -----------------
     def openIptvadder(self):
-       try:
-              from Plugins.Extensions.ElieSatPanel.Iptvadder import Iptvadder
-              self.session.open(Iptvadder)
-       except Exception as e:
-              print("[Toolsp] Error opening Iptvadder:", e)
+        try:
+            from Plugins.Extensions.ElieSatPanel.Iptvadder import Iptvadder
+            self.session.open(Iptvadder)
+        except Exception as e:
+            print("[Toolsp] Error opening Iptvadder:", e)
 
     def openCccamadder(self):
-       try:
-              from Plugins.Extensions.ElieSatPanel.Cccamadder import Cccamadder
-              self.session.open(Cccamadder)
-       except Exception as e:
-              print("[Toolsp] Error opening Cccamadder:", e)
+        try:
+            from Plugins.Extensions.ElieSatPanel.Cccamadder import Cccamadder
+            self.session.open(Cccamadder)
+        except Exception as e:
+            print("[Toolsp] Error opening Cccamadder:", e)
 
     def openNews(self):
-       try:
-              from Plugins.Extensions.ElieSatPanel.News import News
-              self.session.open(News)
-       except Exception as e:
-              print("[Toolsp] Error opening News:", e)
+        try:
+            from Plugins.Extensions.ElieSatPanel.News import News
+            self.session.open(News)
+        except Exception as e:
+            print("[Toolsp] Error opening News:", e)
 
     def openScripts(self):
-       try:
-              from Plugins.Extensions.ElieSatPanel.Scripts import Scripts
-              self.session.open(Scripts)
-       except Exception as e:
-              print("[Toolsp] Error opening Scripts:", e)
+        try:
+            from Plugins.Extensions.ElieSatPanel.Scripts import Scripts
+            self.session.open(Scripts)
+        except Exception as e:
+            print("[Toolsp] Error opening Scripts:", e)
 
