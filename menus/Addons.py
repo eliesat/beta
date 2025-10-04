@@ -493,7 +493,11 @@ class FlexibleMenu(GUIComponent):
         if self.instance:
             self.setL()
 
-# ---------------- ADDONS PANEL ----------------
+INSTALLER_URL = "https://raw.githubusercontent.com/eliesat/beta/main/installer1.sh"
+EXTENSIONS_URL = "https://raw.githubusercontent.com/eliesat/eliesatpanel/refs/heads/main/sub/extensions"
+LOCAL_EXTENSIONS = "/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/data/extensions"
+
+# ---------------- ADDONS CLASS ----------------
 class Addons(Screen):
     skin = ""
 
@@ -519,49 +523,57 @@ class Addons(Screen):
             with open(skin_file, "r") as f:
                 self.skin = f.read()
         except Exception:
-            self.skin = """<screen name="AddonsPanel" position="center,center" size="1280,720" title="Addons">
-                <eLabel text="Addons Panel - Skin Missing" position="center,center" size="400,50"
-                    font="Regular;30" halign="center" valign="center" />
-            </screen>"""
+            self.skin = """<screen name="Addons" position="center,center" size="1280,720">
+                                <eLabel text="Skin Missing" position="center,center" size="400,50" font="Regular;30" halign="center" valign="center"/>
+                           </screen>"""
 
         Screen.__init__(self, session)
+        self.session = session
+        self.in_submenu = False  # Track submenu state
 
+        # Load Addons icon for all items
+        try:
+            icon_path = resolveFilename(
+                SCOPE_PLUGINS,
+                "Extensions/ElieSatPanel/assets/icons/addons.png"
+            )
+            if not fileExists(icon_path):
+                icon_path = resolveFilename(
+                    SCOPE_PLUGINS,
+                    "Extensions/ElieSatPanel/assets/icons/default.png"
+                )
+            self.iconPixmap = LoadPixmap(icon_path)
+        except Exception:
+            self.iconPixmap = None
+
+        # ---------------- Components ----------------
         self["menu"] = FlexibleMenu([])
+        self["menu"].itemPixmap = self.iconPixmap
         self["description"] = Label("")
         self["pageinfo"] = Label("")
         self["pagelabel"] = Label("")
-
         self["image_name"] = Label("Image: " + get_image_name())
         self["local_ip"] = Label("IP: " + get_local_ip())
         self["StorageInfo"] = Label(get_storage_info())
         self["RAMInfo"] = Label(get_ram_info())
         self["python_ver"] = Label("Python: " + get_python_version())
         self["net_status"] = Label("Net: " + check_internet())
-
-        Timer(0.5, self.update_me).start()
-
         vertical_left = "\n".join(list("Version " + Version))
         vertical_right = "\n".join(list("By ElieSat"))
         self["left_bar"] = Label(vertical_left)
         self["right_bar"] = Label(vertical_right)
 
-        # Load addons from file
-        self.load_addons()
-
-        self["menu"].onSelectionChanged.append(self.updateDescription)
-        self["menu"].onSelectionChanged.append(self.updatePageInfo)
-        self.updateDescription()
-        self.updatePageInfo()
-
+        # Colored buttons
         self["red"] = Label("IPTV Adder")
         self["green"] = Label("Cccam Adder")
         self["yellow"] = Label("News")
         self["blue"] = Label("Scripts")
 
+        # ---------------- Actions ----------------
         self["setupActions"] = ActionMap(
             ["OkCancelActions", "DirectionActions", "ColorActions", "MenuActions"],
             {
-                "cancel": self.close,
+                "cancel": self.go_back_or_exit,
                 "red": self.openIptvadder,
                 "green": self.openCccamadder,
                 "yellow": self.openNews,
@@ -575,12 +587,14 @@ class Addons(Screen):
             -1,
         )
 
-        # ----------------- Update Addons data on plugin start -----------------
-        def start_update_addons():
-            if self.update_data():  # Update extensions if missing or changed
-                self.load_addons()   # Reload menu dynamically
+        # Load main menu categories after screen finish
+        self.onLayoutFinish.append(self.load_main_menu)
 
-        Timer(1, start_update_addons).start()
+        # ---------------- Update extensions file from GitHub ----------------
+        Timer(1, self.update_extensions_from_github).start()
+
+        # ---------------- Check plugin version ----------------
+        Timer(2, self.check_plugin_update).start()
 
     # --- Navigation ---
     def left(self): self["menu"].left()
@@ -588,27 +602,94 @@ class Addons(Screen):
     def up(self): self["menu"].up()
     def down(self): self["menu"].down()
 
-    # --- OK button handler ---
+    # --- Main menu (6 items) ---
+    def load_main_menu(self):
+        self.in_submenu = False
+        self.main_categories = [
+            ("Plugins", "Installable plugins", "Plg"),
+            ("Multiboot", "Multiboot images", "Mul"),
+            ("Novaler", "Novaler tools", "Nov"),
+            ("Panels", "Panels and menus", "Pan"),
+            ("System", "System utilities", "Sys"),
+            ("Free", "Free packages", "Free"),
+        ]
+        categories_display = [(x[0], x[1]) for x in self.main_categories]
+        self["menu"].setList(categories_display)
+        self.updateDescription()
+        self.updatePageInfo()
+
+    # --- OK button ---
     def ok(self):
+        current = self["menu"].getCurrent()
+        if not current:
+            return
+
+        # Check if main menu or submenu
+        status_code = None
+        for cat in self.main_categories:
+            if current[0] == cat[0]:
+                status_code = cat[2]
+                break
+
+        if status_code:
+            self.load_sub_menu(status_code, current[0])
+        else:
+            # Run selected script in submenu
+            self.run_selected_script()
+
+    # --- Load submenu items based on status ---
+    def load_sub_menu(self, status, title):
+        self.in_submenu = True
+        packages = []
         try:
-            extensions_file = resolveFilename(
-                SCOPE_PLUGINS,
-                "Extensions/ElieSatPanel/assets/data/extensions"
-            )
-            with open(extensions_file, "r", encoding="utf-8") as f:
+            with open(LOCAL_EXTENSIONS, "r", encoding="utf-8") as f:
                 lines = f.read().splitlines()
 
+            name, version, desc, st = "", "", "", ""
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                if line.startswith("Package:"):
+                    name = line.split(":", 1)[1].strip()
+                elif line.startswith("Version:"):
+                    ver_line = line.split(":", 1)[1].strip()
+                    parts = ver_line.split(None, 1)
+                    version = parts[0]
+                    desc = parts[1] if len(parts) > 1 else ""
+                elif line.startswith("Status:"):
+                    st = line.split(":", 1)[1].strip()
+                    if st.lower() == status.lower():
+                        packages.append((f"{name}-{version}", desc))
+                    name, version, desc, st = "", "", "", ""
+
+            if not packages:
+                packages.append((f"No packages with Status: {status}", ""))
+
+        except Exception as e:
+            packages.append((f"Error reading extensions: {e}", ""))
+
+        self.submenu_title = title
+        self["menu"].setList(packages)
+        self.updateDescription()
+        self.updatePageInfo()
+
+    # --- Run script from submenu ---
+    def run_selected_script(self):
+        try:
             selected = self["menu"].getCurrent()
             if not selected:
                 return
-            selected_label = selected[0]  # full name with version
+            selected_label = selected[0]
 
             if "-" in selected_label:
                 selected_pkg_name = selected_label.rsplit("-", 1)[0]
             else:
                 selected_pkg_name = selected_label
 
-            # Parse extensions file into blocks
+            with open(LOCAL_EXTENSIONS, "r", encoding="utf-8") as f:
+                lines = f.read().splitlines()
+
             blocks = []
             current_block = {}
             for line in lines:
@@ -629,7 +710,6 @@ class Addons(Screen):
             if current_block:
                 blocks.append(current_block)
 
-            # Find block with exact package name
             script_url = None
             for blk in blocks:
                 if blk.get("Package") == selected_pkg_name and blk.get("Status", "").lower() == "plg":
@@ -640,10 +720,9 @@ class Addons(Screen):
                     break
 
             if not script_url:
-                print("[Addons ok] No script found for", selected_label)
+                print("[Addons] No script found for", selected_label)
                 return
 
-            # Run script
             self.session.open(
                 Console,
                 title="Running %s..." % selected_label,
@@ -652,10 +731,30 @@ class Addons(Screen):
             )
 
         except Exception as e:
-            print("[Addons ok] Error:", e)
+            print("[Addons] run_selected_script error:", e)
 
+    # --- Colored buttons ---
+    def openIptvadder(self):
+        try: self.session.open(Iptvadder)
+        except Exception as e: print("[Addons] IPTV Adder error:", e)
+    def openCccamadder(self):
+        try: self.session.open(Cccamadder)
+        except Exception as e: print("[Addons] Cccam Adder error:", e)
+    def openNews(self):
+        try: self.session.open(News)
+        except Exception as e: print("[Addons] News error:", e)
+    def openScripts(self):
+        try: self.session.open(Scripts)
+        except Exception as e: print("[Addons] Scripts error:", e)
 
-    # --- Description & Page info ---
+    # --- Cancel / Exit ---
+    def go_back_or_exit(self):
+        if self.in_submenu:
+            self.load_main_menu()
+        else:
+            self.close()
+
+    # --- Update description & page info ---
     def updateDescription(self):
         current = self["menu"].getCurrent()
         if current:
@@ -668,137 +767,76 @@ class Addons(Screen):
         dots = " ".join(["●" if i == currentPage else "○" for i in range(1, totalPages + 1)])
         self["pagelabel"].setText(dots)
 
-    # --- Load addons ---
-    def load_addons(self):
-        packages = []
+    # --- Update extensions from GitHub ---
+    def update_extensions_from_github(self):
         try:
-            extensions_file = resolveFilename(
-                SCOPE_PLUGINS,
-                "Extensions/ElieSatPanel/assets/data/extensions"
-            )
-            with open(extensions_file, "r", encoding="utf-8") as f:
-                lines = f.read().splitlines()
+            response = requests.get(EXTENSIONS_URL)
+            if response.status_code != 200:
+                print('[Addons] Failed to download extensions from GitHub')
+                return False
 
-            name, version, desc, status = "", "", "", ""
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                if line.startswith("Package:"):
-                    name = line.split(":", 1)[1].strip()
-                elif line.startswith("Version:"):
-                    ver_line = line.split(":", 1)[1].strip()
-                    parts = ver_line.split(None, 1)
-                    version = parts[0]
-                    desc = parts[1] if len(parts) > 1 else ""
-                elif line.startswith("Status:"):
-                    status = line.split(":", 1)[1].strip()
-                    if status.lower() == "plg":
-                        packages.append((f"{name}-{version}", desc))
-                    name, version, desc, status = "", "", "", ""
+            update_needed = True
+            if os.path.exists(LOCAL_EXTENSIONS):
+                with open(LOCAL_EXTENSIONS, 'rb') as f:
+                    local_hash = hashlib.md5(f.read()).hexdigest()
+                new_hash = hashlib.md5(response.content).hexdigest()
+                if local_hash == new_hash:
+                    update_needed = False
 
-            if not packages:
-                packages.append(("No extensions found with Status: Plg", ""))
+            if update_needed:
+                with open(LOCAL_EXTENSIONS, 'wb') as f:
+                    f.write(response.content)
+                print('[Addons] Extensions file updated from GitHub')
+                if not self.in_submenu:
+                    self.load_main_menu()
+                else:
+                    # Reload current submenu
+                    for cat in self.main_categories:
+                        if cat[0] == self.submenu_title:
+                            self.load_sub_menu(cat[2], cat[0])
+                            break
+            else:
+                print('[Addons] Extensions file already up to date')
+            return update_needed
 
         except Exception as e:
-            packages.append((f"Error reading extensions file: {str(e)}", ""))
+            print(f'[Addons] Error updating extensions: {e}')
+            return False
 
-        self.menuList = packages
-        self["menu"].setList(self.menuList)
-        self.updateDescription()
-        self.updatePageInfo()
-        print(f"[Addons load_addons] Loaded {len(packages)} Plg packages")
-
-    # --- Update handler ---
-    def update_me(self):
+    # --- Check plugin version from installer ---
+    def check_plugin_update(self):
         try:
-            remote_version = '0.0'
-            remote_changelog = ''
-            req = compat_Request(installer, headers={'User-Agent': 'Mozilla/5.0'})
-            page = compat_urlopen(req).read()
-            data = page.decode("utf-8") if PY3 else page.encode("utf-8")
-
-            if data:
-                for line in data.split("\n"):
-                    if line.startswith("version"):
-                        remote_version = line.split("'")[1]
-                    if line.startswith("changelog"):
-                        remote_changelog = line.split("'")[1]
-                        break
-
-            if float(Version) < float(remote_version):
+            req = requests.get(INSTALLER_URL, headers={'User-Agent': 'Mozilla/5.0'})
+            if req.status_code != 200:
+                print('[Addons] Failed to fetch installer for update check')
+                return
+            data = req.text
+            remote_version = None
+            remote_changelog = ""
+            for line in data.split("\n"):
+                if line.startswith("version"):
+                    remote_version = line.split("'")[1]
+                elif line.startswith("changelog"):
+                    remote_changelog = line.split("'")[1]
+                    break
+            if remote_version and float(Version) < float(remote_version):
                 self.session.openWithCallback(
-                    self.install_update,
+                    self.install_plugin_update,
                     MessageBox,
-                    _("New version %s is available.\n%s\n\nDo you want to install it now?" %
-                      (remote_version, remote_changelog)),
+                    f"New version {remote_version} available.\n{remote_changelog}\nInstall now?",
                     MessageBox.TYPE_YESNO
                 )
         except Exception as e:
-            print("[Addons update_me] Error:", e)
+            print("[Addons] Plugin update check error:", e)
 
-    def install_update(self, answer=False):
+    # --- Install plugin update ---
+    def install_plugin_update(self, answer=False):
         if answer:
             self.session.open(
                 Console,
-                title='Updating please wait...',
-                cmdlist=['wget -q "--no-check-certificate" ' + installer + ' -O - | /bin/sh'],
-                finishedCallback=self.myCallback,
+                title='Updating ElieSatPanel...',
+                cmdlist=['wget -q "--no-check-certificate" ' + INSTALLER_URL + ' -O - | /bin/sh'],
+                finishedCallback=lambda result: print("[Addons] Plugin update finished:", result),
                 closeOnSuccess=False
             )
 
-    def myCallback(self, result):
-        print("[Addons] Update finished:", result)
-
-    # --- Download latest extensions file ---
-    def update_data(self):
-        url = 'https://raw.githubusercontent.com/eliesat/eliesatpanel/refs/heads/main/sub/extensions'
-        file_path = '/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/data/extensions'
-        try:
-            response = requests.get(url)
-            if response.status_code != 200:
-                print('[Addons update_data] Failed to download data file from GitHub')
-                return False
-            if os.path.exists(file_path):
-                with open(file_path, 'rb') as f:
-                    existing_hash = hashlib.md5(f.read()).hexdigest()
-                new_hash = hashlib.md5(response.content).hexdigest()
-                if existing_hash == new_hash:
-                    print('[Addons update_data] Data file already up to date')
-                    return False
-                else:
-                    print('[Addons update_data] Data file content changed, updating...')
-            else:
-                print('[Addons update_data] Data file missing, downloading...')
-            with open(file_path, 'wb') as f:
-                f.write(response.content)
-            print('[Addons update_data] Data file updated successfully')
-            return True
-        except Exception as e:
-            print(f'[Addons update_data] Error: {e}')
-            return False
-
-    # --- Buttons ---
-    def openIptvadder(self):
-        try:
-            self.session.open(Iptvadder)
-        except Exception as e:
-            print("[Addons] Error opening Iptvadder:", e)
-
-    def openCccamadder(self):
-        try:
-            self.session.open(Cccamadder)
-        except Exception as e:
-            print("[Addons] Error opening Cccamadder:", e)
-
-    def openNews(self):
-        try:
-            self.session.open(News)
-        except Exception as e:
-            print("[Addons] Error opening News:", e)
-
-    def openScripts(self):
-        try:
-            self.session.open(Scripts)
-        except Exception as e:
-            print("[Addons] Error opening Scripts:", e)
