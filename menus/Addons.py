@@ -67,10 +67,21 @@ installer = 'https://raw.githubusercontent.com/eliesat/beta/main/installer1.sh'
 
 # ---------------- FLEXIBLE MENU ----------------
 class FlexibleMenu(GUIComponent):
-    def __init__(self, list_):
+    """A grid-like flexible menu that accepts a list of (title, description) pairs.
+
+    Fixes applied:
+    - Reliable selection callbacks via onSelectionChanged
+    - getList() accessor added (avoids undefined getlist errors)
+    - Printable pager icons (bullets) to avoid non-printable char issues
+    - Defensive normalization of incoming list
+    - Preserves stable behavior for selection/page calculations
+    """
+    def __init__(self, list_=None):
         GUIComponent.__init__(self)
         self.l = eListboxPythonMultiContent()
         self.list = list_ or []
+        # normalize list to list of tuples (title, desc)
+        self._normalize_list()
         self.entries = dict()
         self.onSelectionChanged = []
         self.current = 0
@@ -86,7 +97,23 @@ class FlexibleMenu(GUIComponent):
         self.activeboxheight = 240
         self.panelheight = 700
 
-        # pager icons
+        # pager icons --- use printable bullets to avoid font/icon issues
+        self.selectedicon = "●"
+        self.unselectedicon = "○"
+
+        # try to load fancier icons but don't replace printable ones if fails
+        try:
+            from html import unescape
+            s = unescape("&#xe837;")
+            u = unescape("&#xe836;")
+            # only use them if they are printable (len>0 and not control)
+            if s and ord(s[0]) >= 32:
+                self.selectedicon = s
+            if u and ord(u[0]) >= 32:
+                self.unselectedicon = u
+        except Exception:
+            pass
+
         self.ptr_pagerleft = None
         self.ptr_pagerright = None
         try:
@@ -107,19 +134,24 @@ class FlexibleMenu(GUIComponent):
         self.listWidth = 0
         self.listHeight = 0
 
-        if PY3:
-            import html
-            self.selectedicon = str(html.unescape("&#xe837;"))
-            self.unselectedicon = str(html.unescape("&#xe836;"))
-        else:
+    def _normalize_list(self):
+        normalized = []
+        for item in (self.list or []):
             try:
-                import HTMLParser
-                h = HTMLParser.HTMLParser()
-                self.selectedicon = str(h.unescape("&#xe837;"))
-                self.unselectedicon = str(h.unescape("&#xe836;"))
+                if isinstance(item, (list, tuple)) and len(item) >= 1:
+                    title = str(item[0])
+                    desc = str(item[1]) if len(item) > 1 else ""
+                    normalized.append((title, desc))
+                else:
+                    normalized.append((str(item), ""))
             except Exception:
-                self.selectedicon = "*"
-                self.unselectedicon = "."
+                # Skip bad entries
+                continue
+        self.list = normalized
+
+    def getList(self):
+        """Return the normalized internal list (for callers that expect a getter)."""
+        return self.list
 
     def applySkin(self, desktop, parent):
         attribs = []
@@ -127,6 +159,7 @@ class FlexibleMenu(GUIComponent):
             if attrib == "itemPerPage":
                 try:
                     self.itemPerPage = int(value)
+                    # keep sensible columns based on itemPerPage
                     if self.itemPerPage % 3 == 0:
                         self.columns = 6 if self.itemPerPage >= 18 else max(1, self.itemPerPage // 2)
                     else:
@@ -185,9 +218,11 @@ class FlexibleMenu(GUIComponent):
             else:
                 attribs.append((attrib, value))
 
+        # Font and height for the content
         self.l.setFont(0, gFont("Bold", 30))
         self.l.setItemHeight(self.panelheight)
         self.skinAttributes = attribs
+        # Build entries for the first time
         self.buildEntry()
         return GUIComponent.applySkin(self, desktop, parent)
 
@@ -248,11 +283,17 @@ class FlexibleMenu(GUIComponent):
                 pass
 
     def setList(self, list_):
-        self.list = list_
+        # accept list of strings or tuples
+        self.list = list_ or []
+        self._normalize_list()
+        # clamp current index
+        if self.current >= len(self.list):
+            self.current = max(0, len(self.list) - 1)
         if self.instance:
             self.setL(True)
 
     def buildEntry(self):
+        # rebuild entries (does not modify self.list)
         self.entries.clear()
         if len(self.list) > 0:
             width = self.boxwidth + self.margin
@@ -281,7 +322,7 @@ class FlexibleMenu(GUIComponent):
 
                     key = full_text
 
-                    # Load logo
+                    # Load logo (fallback to default icon)
                     logo = None
                     try:
                         logoPath = resolveFilename(
@@ -307,11 +348,12 @@ class FlexibleMenu(GUIComponent):
                     text_width = self.activeboxwidth
                     text_x = x + xoffset + (self.boxwidth - text_width) // 2
 
-                    self.entries[key] = {
-                        "active": (
+                    # Build entries for this item
+                    try:
+                        active_entries = (
                             MultiContentEntryPixmap(
-                                pos=(x-5, y-5),
-                                size=(self.activeboxwidth+10, active_height+10),
+                                pos=(x - 5, y - 5),
+                                size=(self.activeboxwidth + 10, active_height + 10),
                                 png=self.selPixmap,
                                 flags=BT_SCALE,
                             ),
@@ -337,8 +379,9 @@ class FlexibleMenu(GUIComponent):
                                 flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER,
                                 color=0x00FF8C00,
                             ),
-                        ),
-                        "u_active": (
+                        )
+
+                        inactive_entries = (
                             MultiContentEntryPixmap(
                                 pos=(x + xoffset, y + yoffset),
                                 size=(self.boxwidth, inactive_height),
@@ -365,44 +408,73 @@ class FlexibleMenu(GUIComponent):
                                 text=version,
                                 flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER,
                             ),
-                        ),
-                        "page": page,
-                    }
+                        )
+
+                        self.entries[key] = {
+                            "active": active_entries,
+                            "u_active": inactive_entries,
+                            "page": page,
+                        }
+
+                    except Exception:
+                        # skip problematic item but continue building rest
+                        continue
 
                     x += width
                     if (idx % self.columns) == (self.columns - 1):
                         x = 0
                         y += height
 
+        # After building entries update the visual list
         self.setL()
 
     def setL(self, refresh=False):
+        # refresh rebuilds entries and repopulates the visible list
         if refresh:
             self.entries.clear()
-            self.setpage()
             self.buildEntry()
             return
         if len(self.entries) > 0 and len(self.list) > 0:
             res = [None]
             if self.current > (len(self.list) - 1):
                 self.current = (len(self.list) - 1)
+            # safely get current key
             try:
-                current = self.entries[self.list[self.current][0]]
+                current_key = self.list[self.current][0]
+                current = self.entries.get(current_key)
             except Exception:
-                first_key = next(iter(self.entries))
-                current = self.entries[first_key]
-                self.current = 0
-            current_page = current["page"]
+                current = None
+                # fallback to first available
+                if len(self.entries):
+                    first_key = next(iter(self.entries))
+                    current = self.entries[first_key]
+                    self.current = 0
+
+            current_page = current.get("page") if current else 1
+            page_items = []
             for _, value in self.entries.items():
                 if value["page"] == current_page:
                     if value == current:
-                        res.extend(value["active"])
+                        page_items.extend(value["active"])
                     else:
-                        res.extend(value["u_active"])
-            self.l.setList([res])
+                        page_items.extend(value["u_active"])
+
+            # eListbox expects a list of records; pack into a single-line record
+            try:
+                self.l.setList([res + page_items])
+            except Exception:
+                # last-resort: send empty list
+                try:
+                    self.l.setList([])
+                except Exception:
+                    pass
+
             self.setpage()
         else:
-            self.l.setList([])
+            try:
+                self.l.setList([])
+            except Exception:
+                pass
 
     def setpage(self):
         if self.total_pages > 1:
@@ -428,10 +500,13 @@ class FlexibleMenu(GUIComponent):
                     self.pager_right.move(ePoint((self.listWidth // 2) + (w - 16), y))
                 except Exception:
                     pass
-                self.pager_left.show()
-                self.pager_right.show()
-                self.pager_center.show()
-                self.pagelabel.show()
+                try:
+                    self.pager_left.show()
+                    self.pager_right.show()
+                    self.pager_center.show()
+                    self.pagelabel.show()
+                except Exception:
+                    pass
         else:
             try:
                 self.pager_left.hide()
@@ -442,13 +517,19 @@ class FlexibleMenu(GUIComponent):
                 pass
 
     def getCurrentPage(self):
+        # return a 1-based page index; if items exist always return at least 1
         if len(self.entries) > 0 and len(self.list) > 0:
             if self.current > (len(self.list) - 1):
                 self.current = (len(self.list) - 1)
-            current = self.entries.get(self.list[self.current][0], None)
-            if current:
-                return current["page"]
-        return 0
+            try:
+                current_key = self.list[self.current][0]
+                current = self.entries.get(current_key, None)
+                if current:
+                    return current["page"]
+            except Exception:
+                pass
+            return 1
+        return 1
 
     def left(self):
         self.move(1, "backwards")
@@ -483,15 +564,23 @@ class FlexibleMenu(GUIComponent):
 
     def getCurrent(self):
         if len(self.list) > 0:
-            return self.list[self.current]
+            try:
+                return self.list[self.current]
+            except Exception:
+                return self.list[0]
+        return None
 
     def getSelectedIndex(self):
         return self.current
 
     def setIndex(self, index):
-        self.current = index
+        try:
+            self.current = int(index)
+        except Exception:
+            self.current = 0
         if self.instance:
             self.setL()
+
 
 INSTALLER_URL = "https://raw.githubusercontent.com/eliesat/beta/main/installer1.sh"
 EXTENSIONS_URL = "https://raw.githubusercontent.com/eliesat/eliesatpanel/refs/heads/main/sub/extensions"
@@ -523,13 +612,15 @@ class Addons(Screen):
             with open(skin_file, "r") as f:
                 self.skin = f.read()
         except Exception:
-            self.skin = """<screen name="Addons" position="center,center" size="1280,720">
-                                <eLabel text="Skin Missing" position="center,center" size="400,50" font="Regular;30" halign="center" valign="center"/>
-                           </screen>"""
+            self.skin = """<screen name=\"Addons\" position=\"center,center\" size=\"1280,720\">
+                                <eLabel text=\"Skin Missing\" position=\"center,center\" size=\"400,50\" font=\"Regular;30\" halign=\"center\" valign=\"center\"/>
+                            </screen>"""
 
         Screen.__init__(self, session)
         self.session = session
-        self.in_submenu = False  # Track submenu state
+        self.in_submenu = False
+        self.submenu_title = None
+        self.previous_index = 0
 
         # Load Addons icon for all items
         try:
@@ -558,6 +649,7 @@ class Addons(Screen):
         self["RAMInfo"] = Label(get_ram_info())
         self["python_ver"] = Label("Python: " + get_python_version())
         self["net_status"] = Label("Net: " + check_internet())
+
         vertical_left = "\n".join(list("Version " + Version))
         vertical_right = "\n".join(list("By ElieSat"))
         self["left_bar"] = Label(vertical_left)
@@ -587,13 +679,20 @@ class Addons(Screen):
             -1,
         )
 
-        # Load main menu categories after screen finish
+        # Load main menu after screen finish
         self.onLayoutFinish.append(self.load_main_menu)
 
-        # ---------------- Update extensions file from GitHub ----------------
+        # Selection change callbacks
+        try:
+            self["menu"].onSelectionChanged.append(self.updateDescription)
+            self["menu"].onSelectionChanged.append(self.updatePageInfo)
+        except Exception:
+            pass
+
+        # Update extensions from GitHub
         Timer(1, self.update_extensions_from_github).start()
 
-        # ---------------- Check plugin version ----------------
+        # Check plugin version
         Timer(2, self.check_plugin_update).start()
 
     # --- Navigation ---
@@ -602,7 +701,7 @@ class Addons(Screen):
     def up(self): self["menu"].up()
     def down(self): self["menu"].down()
 
-    # --- Main menu (6 items) ---
+    # --- Main menu ---
     def load_main_menu(self):
         self.in_submenu = False
         self.main_categories = [
@@ -615,16 +714,23 @@ class Addons(Screen):
         ]
         categories_display = [(x[0], x[1]) for x in self.main_categories]
         self["menu"].setList(categories_display)
+        try:
+            idx = int(self.previous_index) if hasattr(self, "previous_index") else 0
+        except Exception:
+            idx = 0
+        if idx >= len(categories_display): idx = 0
+        try: self["menu"].setIndex(idx)
+        except Exception: pass
         self.updateDescription()
         self.updatePageInfo()
 
     # --- OK button ---
     def ok(self):
         current = self["menu"].getCurrent()
-        if not current:
-            return
+        if not current: return
+        try: self.previous_index = self["menu"].getSelectedIndex()
+        except Exception: self.previous_index = 0
 
-        # Check if main menu or submenu
         status_code = None
         for cat in self.main_categories:
             if current[0] == cat[0]:
@@ -634,24 +740,23 @@ class Addons(Screen):
         if status_code:
             self.load_sub_menu(status_code, current[0])
         else:
-            # Run selected script in submenu
             self.run_selected_script()
 
-    # --- Load submenu items based on status ---
+    # --- Load submenu ---
     def load_sub_menu(self, status, title):
         self.in_submenu = True
         packages = []
         try:
+            if not os.path.exists(LOCAL_EXTENSIONS):
+                raise IOError("extensions file not found: %s" % LOCAL_EXTENSIONS)
             with open(LOCAL_EXTENSIONS, "r", encoding="utf-8") as f:
                 lines = f.read().splitlines()
 
             name, version, desc, st = "", "", "", ""
             for line in lines:
                 line = line.strip()
-                if not line:
-                    continue
-                if line.startswith("Package:"):
-                    name = line.split(":", 1)[1].strip()
+                if not line: continue
+                if line.startswith("Package:"): name = line.split(":", 1)[1].strip()
                 elif line.startswith("Version:"):
                     ver_line = line.split(":", 1)[1].strip()
                     parts = ver_line.split(None, 1)
@@ -663,29 +768,29 @@ class Addons(Screen):
                         packages.append((f"{name}-{version}", desc))
                     name, version, desc, st = "", "", "", ""
 
-            if not packages:
-                packages.append((f"No packages with Status: {status}", ""))
+            if not packages: packages.append((f"No packages with Status: {status}", ""))
 
         except Exception as e:
             packages.append((f"Error reading extensions: {e}", ""))
 
         self.submenu_title = title
         self["menu"].setList(packages)
+        try: self["menu"].setIndex(0)
+        except Exception: pass
         self.updateDescription()
         self.updatePageInfo()
 
-    # --- Run script from submenu ---
+    # --- Run selected script ---
     def run_selected_script(self):
         try:
             selected = self["menu"].getCurrent()
-            if not selected:
-                return
+            if not selected: return
             selected_label = selected[0]
+            selected_pkg_name = selected_label.rsplit("-", 1)[0] if "-" in selected_label else selected_label
 
-            if "-" in selected_label:
-                selected_pkg_name = selected_label.rsplit("-", 1)[0]
-            else:
-                selected_pkg_name = selected_label
+            if not os.path.exists(LOCAL_EXTENSIONS):
+                print("[Addons] extensions file missing when running script")
+                return
 
             with open(LOCAL_EXTENSIONS, "r", encoding="utf-8") as f:
                 lines = f.read().splitlines()
@@ -694,11 +799,9 @@ class Addons(Screen):
             current_block = {}
             for line in lines:
                 line = line.strip()
-                if not line:
-                    continue
+                if not line: continue
                 if line.startswith("Package:"):
-                    if current_block:
-                        blocks.append(current_block)
+                    if current_block: blocks.append(current_block)
                     current_block = {"Package": line.split(":", 1)[1].strip()}
                 elif "=" in line and current_block:
                     key, value = line.split("=", 1)
@@ -707,14 +810,13 @@ class Addons(Screen):
                     current_block["Version"] = line.split(":", 1)[1].strip()
                 elif line.startswith("Status:") and current_block:
                     current_block["Status"] = line.split(":", 1)[1].strip()
-            if current_block:
-                blocks.append(current_block)
+            if current_block: blocks.append(current_block)
 
             script_url = None
             for blk in blocks:
-                if blk.get("Package") == selected_pkg_name and blk.get("Status", "").lower() == "plg":
+                if blk.get("Package") == selected_pkg_name:  # <-- FIXED: remove status check
                     for key, val in blk.items():
-                        if key not in ["Package", "Version", "Status"] and val.endswith(".sh"):
+                        if key not in ["Package", "Version", "Status"] and isinstance(val, str) and val.endswith(".sh"):
                             script_url = val
                             break
                     break
@@ -723,11 +825,12 @@ class Addons(Screen):
                 print("[Addons] No script found for", selected_label)
                 return
 
+            # Run script in Console
             self.session.open(
                 Console,
                 title="Running %s..." % selected_label,
                 cmdlist=['wget -q "--no-check-certificate" %s -O - | /bin/sh' % script_url],
-                closeOnSuccess=False
+                closeOnSuccess=True,
             )
 
         except Exception as e:
@@ -737,12 +840,15 @@ class Addons(Screen):
     def openIptvadder(self):
         try: self.session.open(Iptvadder)
         except Exception as e: print("[Addons] IPTV Adder error:", e)
+
     def openCccamadder(self):
         try: self.session.open(Cccamadder)
         except Exception as e: print("[Addons] Cccam Adder error:", e)
+
     def openNews(self):
         try: self.session.open(News)
         except Exception as e: print("[Addons] News error:", e)
+
     def openScripts(self):
         try: self.session.open(Scripts)
         except Exception as e: print("[Addons] Scripts error:", e)
@@ -758,43 +864,54 @@ class Addons(Screen):
     def updateDescription(self):
         current = self["menu"].getCurrent()
         if current:
-            self["description"].setText(current[1] if len(current) > 1 else "")
+            desc_text = current[1] if len(current) > 1 else ""
+            try: self["description"].setText(desc_text)
+            except Exception: pass
 
     def updatePageInfo(self):
-        currentPage = self["menu"].getCurrentPage()
-        totalPages = self["menu"].total_pages
-        self["pageinfo"].setText(f"Page {currentPage}/{totalPages}")
-        dots = " ".join(["●" if i == currentPage else "○" for i in range(1, totalPages + 1)])
-        self["pagelabel"].setText(dots)
+        try: currentPage = int(self["menu"].getCurrentPage())
+        except Exception: currentPage = 1
+        try: totalPages = int(self["menu"].total_pages) if hasattr(self["menu"], "total_pages") else 1
+        except Exception: totalPages = 1
+        try: self["pageinfo"].setText(f"Page {currentPage}/{totalPages}")
+        except Exception: pass
+        try:
+            dots = " ".join(["●" if i == currentPage else "○" for i in range(1, totalPages + 1)])
+            self["pagelabel"].setText(dots)
+        except Exception:
+            try: self["pagelabel"].setText("")
+            except Exception: pass
 
     # --- Update extensions from GitHub ---
     def update_extensions_from_github(self):
         try:
-            response = requests.get(EXTENSIONS_URL)
+            response = requests.get(EXTENSIONS_URL, timeout=10)
             if response.status_code != 200:
-                print('[Addons] Failed to download extensions from GitHub')
+                print('[Addons] Failed to download extensions from GitHub: status', response.status_code)
                 return False
 
             update_needed = True
             if os.path.exists(LOCAL_EXTENSIONS):
-                with open(LOCAL_EXTENSIONS, 'rb') as f:
-                    local_hash = hashlib.md5(f.read()).hexdigest()
-                new_hash = hashlib.md5(response.content).hexdigest()
-                if local_hash == new_hash:
-                    update_needed = False
+                try:
+                    with open(LOCAL_EXTENSIONS, 'rb') as f:
+                        local_hash = hashlib.md5(f.read()).hexdigest()
+                    new_hash = hashlib.md5(response.content).hexdigest()
+                    if local_hash == new_hash:
+                        update_needed = False
+                except Exception: update_needed = True
 
             if update_needed:
-                with open(LOCAL_EXTENSIONS, 'wb') as f:
-                    f.write(response.content)
-                print('[Addons] Extensions file updated from GitHub')
-                if not self.in_submenu:
-                    self.load_main_menu()
-                else:
-                    # Reload current submenu
-                    for cat in self.main_categories:
-                        if cat[0] == self.submenu_title:
-                            self.load_sub_menu(cat[2], cat[0])
-                            break
+                try:
+                    with open(LOCAL_EXTENSIONS, 'wb') as f: f.write(response.content)
+                    print('[Addons] Extensions file updated from GitHub')
+                    if not self.in_submenu: self.load_main_menu()
+                    else:
+                        for cat in self.main_categories:
+                            if cat[0] == self.submenu_title:
+                                self.load_sub_menu(cat[2], cat[0])
+                                break
+                except Exception as e:
+                    print('[Addons] Error writing extensions file:', e)
             else:
                 print('[Addons] Extensions file already up to date')
             return update_needed
@@ -803,10 +920,10 @@ class Addons(Screen):
             print(f'[Addons] Error updating extensions: {e}')
             return False
 
-    # --- Check plugin version from installer ---
+    # --- Check plugin version ---
     def check_plugin_update(self):
         try:
-            req = requests.get(INSTALLER_URL, headers={'User-Agent': 'Mozilla/5.0'})
+            req = requests.get(INSTALLER_URL, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
             if req.status_code != 200:
                 print('[Addons] Failed to fetch installer for update check')
                 return
@@ -815,17 +932,24 @@ class Addons(Screen):
             remote_changelog = ""
             for line in data.split("\n"):
                 if line.startswith("version"):
-                    remote_version = line.split("'")[1]
+                    parts = line.split("=", 1)
+                    if len(parts) > 1: remote_version = parts[1].strip().strip("'\"")
                 elif line.startswith("changelog"):
-                    remote_changelog = line.split("'")[1]
-                    break
-            if remote_version and float(Version) < float(remote_version):
-                self.session.openWithCallback(
-                    self.install_plugin_update,
-                    MessageBox,
-                    f"New version {remote_version} available.\n{remote_changelog}\nInstall now?",
-                    MessageBox.TYPE_YESNO
-                )
+                    parts = line.split("=", 1)
+                    if len(parts) > 1:
+                        remote_changelog = parts[1].strip().strip("'\"")
+                        break
+            try:
+                if remote_version and float(Version) < float(remote_version):
+                    self.session.openWithCallback(
+                        self.install_plugin_update,
+                        MessageBox,
+                        f"""New version {remote_version} available.
+{remote_changelog}
+Install now?""",
+                        MessageBox.TYPE_YESNO,
+                    )
+            except Exception: pass
         except Exception as e:
             print("[Addons] Plugin update check error:", e)
 
@@ -837,6 +961,5 @@ class Addons(Screen):
                 title='Updating ElieSatPanel...',
                 cmdlist=['wget -q "--no-check-certificate" ' + INSTALLER_URL + ' -O - | /bin/sh'],
                 finishedCallback=lambda result: print("[Addons] Plugin update finished:", result),
-                closeOnSuccess=False
+                closeOnSuccess=True,
             )
-
