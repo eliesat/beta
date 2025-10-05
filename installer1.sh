@@ -5,8 +5,8 @@ clear >/dev/null 2>&1
 #configuration
 ###########################################
 plugin=beta-main
-version='3.34'
-changelog='1.04.10.2025 / Addons submenus activated'
+version='3.35'
+changelog='1.05.10.2025 / Addons submenus fixed'
 url=https://github.com/eliesat/beta/archive/main.tar.gz
 package=/tmp/$plugin.tar.gz
 rm -rf /tmp/$plugin.tar.gz >/dev/null 2>&1
