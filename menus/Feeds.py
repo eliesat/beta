@@ -596,19 +596,22 @@ class Feeds(Screen):
         except Exception:
             pass
 
+        # ---------------- Skin selection ----------------
         base_skin_path = "/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/skin/"
-        hd_skin = os.path.join(base_skin_path, "eliesatpanel_hd.xml")
-        fhd_skin = os.path.join(base_skin_path, "eliesatpanel_fhd.xml")
-        skin_file = hd_skin
-        if screen_width >= 1920 and os.path.exists(fhd_skin):
-            skin_file = fhd_skin
-        elif os.path.exists(hd_skin):
-            skin_file = hd_skin
-        else:
-            skin_file = os.path.join(base_skin_path, "eliesatpanel.xml")
+        skin_files = {
+            "hd": os.path.join(base_skin_path, "eliesatpanel_hd.xml"),
+            "fhd": os.path.join(base_skin_path, "eliesatpanel_fhd.xml"),
+            "default": os.path.join(base_skin_path, "eliesatpanel.xml"),
+        }
+
+        skin_file = (
+            skin_files["fhd"] if screen_width >= 1920 and os.path.exists(skin_files["fhd"])
+            else skin_files["hd"] if os.path.exists(skin_files["hd"])
+            else skin_files["default"]
+        )
 
         try:
-            with open(skin_file, "r") as f:
+            with open(skin_file, "r", encoding="utf-8") as f:
                 self.skin = f.read()
         except Exception:
             self.skin = (
@@ -623,44 +626,47 @@ class Feeds(Screen):
         self.in_submenu = False
         self.submenu_title = None
         self.previous_index = 0
+        self.submenu_indices = {}
 
-        # ---------------- Components ----------------
+        # ---------------- Load Icon ----------------
         try:
             icon_path = resolveFilename(
-                SCOPE_PLUGINS,
-                "Extensions/ElieSatPanel/assets/icons/feeds.png",
+                SCOPE_PLUGINS, "Extensions/ElieSatPanel/assets/icons/feeds.png"
             )
             if not fileExists(icon_path):
                 icon_path = resolveFilename(
-                    SCOPE_PLUGINS,
-                    "Extensions/ElieSatPanel/assets/icons/default.png",
+                    SCOPE_PLUGINS, "Extensions/ElieSatPanel/assets/icons/default.png"
                 )
             self.iconPixmap = LoadPixmap(icon_path)
         except Exception:
             self.iconPixmap = None
 
+        # ---------------- UI Components ----------------
         self["menu"] = FlexibleMenu([])
         self["menu"].itemPixmap = self.iconPixmap
         self["description"] = Label("")
         self["pageinfo"] = Label("")
         self["pagelabel"] = Label("")
-        self["image_name"] = Label("Image: " + str(get_image_name()))
-        self["local_ip"] = Label("IP: " + str(get_local_ip()))
+        self["image_name"] = Label(f"Image: {get_image_name()}")
+        self["local_ip"] = Label(f"IP: {get_local_ip()}")
         self["StorageInfo"] = Label(get_storage_info())
         self["RAMInfo"] = Label(get_ram_info())
-        self["python_ver"] = Label("Python: " + str(get_python_version()))
-        self["net_status"] = Label("Net: " + str(check_internet()))
+        self["python_ver"] = Label(f"Python: {get_python_version()}")
+        self["net_status"] = Label(f"Net: {check_internet()}")
 
-        vertical_left = "Version\n" + str(Version)
-        vertical_right = "By ElieSat"
+        # ---------------- Vertical labels ----------------
+        vertical_left = "\n".join(list("Version " + Version))
+        vertical_right = "\n".join(list("By ElieSat"))
         self["left_bar"] = Label(vertical_left)
         self["right_bar"] = Label(vertical_right)
 
+        # ---------------- Colored buttons ----------------
         self["red"] = Label("IPTV Adder")
         self["green"] = Label("Cccam Adder")
         self["yellow"] = Label("News")
         self["blue"] = Label("Scripts")
 
+        # ---------------- Key Actions ----------------
         self["setupActions"] = ActionMap(
             ["OkCancelActions", "DirectionActions", "ColorActions", "MenuActions"],
             {
@@ -670,15 +676,16 @@ class Feeds(Screen):
                 "yellow": self.openNews,
                 "blue": self.openScripts,
                 "ok": self.ok,
-                "left": self.left,
-                "right": self.right,
-                "up": self.up,
-                "down": self.down,
+                "left": lambda: self["menu"].left(),
+                "right": lambda: self["menu"].right(),
+                "up": lambda: self["menu"].up(),
+                "down": lambda: self["menu"].down(),
             },
             -1,
         )
 
         self.onLayoutFinish.append(self.load_main_menu)
+
         try:
             self["menu"].onSelectionChanged.append(self.updateDescription)
             self["menu"].onSelectionChanged.append(self.updatePageInfo)
@@ -688,62 +695,46 @@ class Feeds(Screen):
         Timer(1, self.update_extensions_from_github).start()
         Timer(2, self.check_plugin_update).start()
 
-    # --- Navigation ---
-    def left(self): self["menu"].left()
-    def right(self): self["menu"].right()
-    def up(self): self["menu"].up()
-    def down(self): self["menu"].down()
-
-    # --- Main menu ---
+    # ---------------- Main menu ----------------
     def load_main_menu(self, restore_index=False):
         self.in_submenu = False
         self.main_categories = [("Feed", "Feed", "Feeds")]
         categories_display = [(x[0], x[1]) for x in self.main_categories]
         self["menu"].setList(categories_display)
 
-        idx = 0
-        try:
-            if restore_index:
-                idx = self.previous_index
-            elif hasattr(self, "previous_index"):
-                idx = self.previous_index
-        except Exception:
-            idx = 0
+        idx = self.previous_index if restore_index else 0
         if idx >= len(categories_display):
             idx = 0
-        try:
-            self["menu"].setIndex(idx)
-        except Exception:
-            pass
+        self["menu"].setIndex(idx)
         self.updateDescription()
         self.updatePageInfo()
 
-    # --- OK button ---
+    # ---------------- OK button ----------------
     def ok(self):
         current = self["menu"].getCurrent()
         if not current:
             return
-        try:
-            self.previous_index = self["menu"].getSelectedIndex()
-        except Exception:
-            self.previous_index = 0
+        self.previous_index = self["menu"].getSelectedIndex() or 0
 
         if current[0] == "Feed":
             self.load_sub_menu("Feeds", current[0])
         else:
             self.run_selected_script()
 
-    # --- Load submenu ---
+    # ---------------- Load submenu ----------------
     def load_sub_menu(self, status, title):
         self.in_submenu = True
         packages = []
+
+        submenu_index = self.submenu_indices.get(title, 0)
+
         try:
             if not os.path.exists(LOCAL_EXTENSIONS):
-                raise IOError("feeds file not found: %s" % LOCAL_EXTENSIONS)
+                raise FileNotFoundError(f"feeds file not found: {LOCAL_EXTENSIONS}")
             with open(LOCAL_EXTENSIONS, "r", encoding="utf-8") as f:
                 lines = f.read().splitlines()
 
-            name, version, desc, st = "", "", "", ""
+            name = version = desc = st = ""
             for line in lines:
                 line = line.strip()
                 if not line:
@@ -751,75 +742,67 @@ class Feeds(Screen):
                 if line.startswith("Package:"):
                     name = line.split(":", 1)[1].strip()
                 elif line.startswith("Version:"):
-                    ver_line = line.split(":", 1)[1].strip()
-                    parts = ver_line.split(None, 1)
+                    parts = line.split(":", 1)[1].strip().split(None, 1)
                     version = parts[0]
                     desc = parts[1] if len(parts) > 1 else ""
                 elif line.startswith("Status:"):
                     st = line.split(":", 1)[1].strip()
                     if st.lower() == status.lower():
                         packages.append((f"{name}-{version}", desc))
-                    name, version, desc, st = "", "", "", ""
+                    name = version = desc = st = ""
 
             if not packages:
                 packages.append((f"No packages with Status: {status}", ""))
-
         except Exception as e:
             packages.append((f"Error reading feeds: {e}", ""))
 
         self.submenu_title = title
         self["menu"].setList(packages)
-        try:
+
+        if submenu_index < len(packages):
+            self["menu"].setIndex(submenu_index)
+        else:
             self["menu"].setIndex(0)
-        except Exception:
-            pass
+
         self.updateDescription()
         self.updatePageInfo()
 
-    # --- Run selected script ---
+    # ---------------- Run selected script ----------------
     def run_selected_script(self):
         try:
             selected = self["menu"].getCurrent()
             if not selected:
                 return
             selected_label = selected[0]
-            selected_pkg_name = selected_label.rsplit("-", 1)[0] if "-" in selected_label else selected_label
+            pkg_name = selected_label.rsplit("-", 1)[0] if "-" in selected_label else selected_label
 
             if not os.path.exists(LOCAL_EXTENSIONS):
-                print("[Feeds] feeds file missing when running script")
+                print("[Feeds] feeds file missing")
                 return
 
+            script_url = None
             with open(LOCAL_EXTENSIONS, "r", encoding="utf-8") as f:
                 lines = f.read().splitlines()
-
-            blocks = []
-            current_block = {}
+            block = {}
             for line in lines:
                 line = line.strip()
                 if not line:
                     continue
                 if line.startswith("Package:"):
-                    if current_block:
-                        blocks.append(current_block)
-                    current_block = {"Package": line.split(":", 1)[1].strip()}
-                elif "=" in line and current_block:
-                    key, value = line.split("=", 1)
-                    current_block[key.strip()] = value.strip().strip("'\"")
-                elif line.startswith("Version:") and current_block:
-                    current_block["Version"] = line.split(":", 1)[1].strip()
-                elif line.startswith("Status:") and current_block:
-                    current_block["Status"] = line.split(":", 1)[1].strip()
-            if current_block:
-                blocks.append(current_block)
-
-            script_url = None
-            for blk in blocks:
-                if blk.get("Package") == selected_pkg_name:
-                    for key, val in blk.items():
-                        if key not in ["Package", "Version", "Status"] and isinstance(val, str) and val.endswith(".sh"):
-                            script_url = val
-                            break
-                    break
+                    if block and block.get("Package") == pkg_name:
+                        for k, v in block.items():
+                            if k not in ["Package", "Version", "Status"] and v.endswith(".sh"):
+                                script_url = v
+                                break
+                        break
+                    block = {"Package": line.split(":", 1)[1].strip()}
+                elif "=" in line:
+                    key, val = line.split("=", 1)
+                    block[key.strip()] = val.strip().strip("'\"")
+                elif line.startswith("Version:"):
+                    block["Version"] = line.split(":", 1)[1].strip()
+                elif line.startswith("Status:"):
+                    block["Status"] = line.split(":", 1)[1].strip()
 
             if not script_url:
                 print("[Feeds] No script found for", selected_label)
@@ -839,48 +822,39 @@ class Feeds(Screen):
 
             self.session.open(
                 Console,
-                title="Running %s..." % selected_label,
-                cmdlist=['wget -q "--no-check-certificate" %s -O - | /bin/sh' % script_url],
+                title=f"Running {selected_label}...",
+                cmdlist=[f'wget -q --no-check-certificate "{script_url}" -O - | /bin/sh'],
                 closeOnSuccess=True,
                 finishedCallback=restore_submenu,
             )
-
         except Exception as e:
             print("[Feeds] run_selected_script error:", e)
 
-    # --- Colored buttons ---
-    def openIptvadder(self):
-        try: self.session.open(Iptvadder)
-        except Exception as e: print("[Feeds] IPTV Adder error:", e)
+    # ---------------- Colored buttons ----------------
+    def openIptvadder(self): self._safe_open(Iptvadder, "IPTV Adder")
+    def openCccamadder(self): self._safe_open(Cccamadder, "Cccam Adder")
+    def openNews(self): self._safe_open(News, "News")
+    def openScripts(self): self._safe_open(Scripts, "Scripts")
 
-    def openCccamadder(self):
-        try: self.session.open(Cccamadder)
-        except Exception as e: print("[Feeds] Cccam Adder error:", e)
+    def _safe_open(self, screen, name):
+        try:
+            self.session.open(screen)
+        except Exception as e:
+            print(f"[Feeds] {name} error:", e)
 
-    def openNews(self):
-        try: self.session.open(News)
-        except Exception as e: print("[Feeds] News error:", e)
-
-    def openScripts(self):
-        try: self.session.open(Scripts)
-        except Exception as e: print("[Feeds] Scripts error:", e)
-
-    # --- Cancel / Exit ---
+    # ---------------- Exit / Back ----------------
     def go_back_or_exit(self):
         if self.in_submenu:
-            self.load_main_menu()
+            self.submenu_indices[self.submenu_title] = self["menu"].getSelectedIndex() or 0
+            self.load_main_menu(restore_index=True)
         else:
             self.close()
 
-    # --- Description & Page info ---
+    # ---------------- Description & Page Info ----------------
     def updateDescription(self):
         current = self["menu"].getCurrent()
-        if current:
-            desc_text = current[1] if len(current) > 1 else ""
-            try:
-                self["description"].setText(desc_text)
-            except Exception:
-                pass
+        desc_text = current[1] if current and len(current) > 1 else ""
+        self["description"].setText(desc_text or "")
 
     def updatePageInfo(self):
         try:
@@ -899,90 +873,74 @@ class Feeds(Screen):
             dots = " ".join(["●" if i == currentPage else "○" for i in range(1, totalPages + 1)])
             self["pagelabel"].setText(dots)
         except Exception:
-            try:
-                self["pagelabel"].setText("")
-            except Exception:
-                pass
+            try: self["pagelabel"].setText("")
+            except Exception: pass
 
-    # --- Update feeds file from GitHub ---
+    # ---------------- GitHub Update ----------------
     def update_extensions_from_github(self):
         try:
             response = requests.get(EXTENSIONS_URL, timeout=10)
             if response.status_code != 200:
-                print('[Feeds] Failed to download feeds file: status', response.status_code)
+                print(f"[Feeds] Failed to fetch feeds: {response.status_code}")
                 return False
 
-            update_needed = True
+            new_hash = hashlib.md5(response.content).hexdigest()
+            local_hash = None
             if os.path.exists(LOCAL_EXTENSIONS):
-                try:
-                    with open(LOCAL_EXTENSIONS, 'rb') as f:
-                        local_hash = hashlib.md5(f.read()).hexdigest()
-                    new_hash = hashlib.md5(response.content).hexdigest()
-                    if local_hash == new_hash:
-                        update_needed = False
-                except Exception:
-                    update_needed = True
+                with open(LOCAL_EXTENSIONS, "rb") as f:
+                    local_hash = hashlib.md5(f.read()).hexdigest()
 
-            if update_needed:
-                try:
-                    with open(LOCAL_EXTENSIONS, 'wb') as f:
-                        f.write(response.content)
-                    print('[Feeds] Feeds file updated')
-                    if not self.in_submenu:
-                        self.load_main_menu()
-                    else:
-                        self.load_sub_menu("Feeds", "Feed")
-                except Exception as e:
-                    print('[Feeds] Error writing feeds file:', e)
+            if local_hash == new_hash:
+                print("[Feeds] Feeds already up-to-date")
+                return False
+
+            with open(LOCAL_EXTENSIONS, "wb") as f:
+                f.write(response.content)
+            print("[Feeds] Feeds updated from GitHub")
+
+            if not self.in_submenu:
+                self.load_main_menu()
             else:
-                print('[Feeds] Feeds file already up to date')
-            return update_needed
+                self.load_sub_menu("Feeds", "Feed")
 
+            return True
         except Exception as e:
-            print(f'[Feeds] Error updating feeds: {e}')
+            print("[Feeds] update_extensions_from_github error:", e)
             return False
 
-    # --- Check plugin version ---
+    # ---------------- Plugin Update ----------------
     def check_plugin_update(self):
         try:
             req = requests.get(INSTALLER_URL, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
             if req.status_code != 200:
-                print('[Feeds] Failed to fetch installer for update check')
+                print("[Feeds] Failed to fetch installer for update check")
                 return
-            data = req.text
-            remote_version = None
-            remote_changelog = ""
-            for line in data.split("\n"):
-                l = line.strip()
-                if l.startswith("version"):
-                    parts = l.split("=", 1)
-                    if len(parts) > 1:
-                        remote_version = parts[1].strip().strip("'\"")
-                elif l.startswith("changelog"):
-                    parts = l.split("=", 1)
-                    if len(parts) > 1:
-                        remote_changelog = parts[1].strip().strip("'\"")
-                        break
-            try:
-                if remote_version and float(str(Version)) < float(remote_version):
-                    self.session.openWithCallback(
-                        self.install_plugin_update,
-                        MessageBox,
-                        f"""New version {remote_version} available.\n{remote_changelog}\nInstall now?""",
-                        MessageBox.TYPE_YESNO,
-                    )
-            except Exception:
-                pass
-        except Exception as e:
-            print("[Feeds] Plugin update check error:", e)
 
-    # --- Install plugin update ---
+            remote_version, remote_changelog = None, ""
+            for line in req.text.splitlines():
+                if line.startswith("version"):
+                    remote_version = line.split("=", 1)[1].strip().strip("'\"")
+                elif line.startswith("changelog"):
+                    remote_changelog = line.split("=", 1)[1].strip().strip("'\"")
+                    break
+
+            if remote_version and float(Version) < float(remote_version):
+                self.session.openWithCallback(
+                    self.install_plugin_update,
+                    MessageBox,
+                    f"New version {remote_version} available.\n{remote_changelog}\nInstall now?",
+                    MessageBox.TYPE_YESNO,
+                )
+        except Exception as e:
+            print("[Feeds] check_plugin_update error:", e)
+
     def install_plugin_update(self, answer=False):
-        if answer:
-            self.session.open(
-                Console,
-                title='Updating ElieSatPanel...',
-                cmdlist=['wget -q "--no-check-certificate" ' + INSTALLER_URL + ' -O - | /bin/sh'],
-                finishedCallback=lambda result: print("[Feeds] Plugin update finished:", result),
-                closeOnSuccess=True,
-            )
+        if not answer:
+            return
+        self.session.open(
+            Console,
+            title="Updating ElieSatPanel...",
+            cmdlist=[f'wget -q --no-check-certificate {INSTALLER_URL} -O - | /bin/sh'],
+            finishedCallback=lambda r: print("[Feeds] Plugin update finished:", r),
+            closeOnSuccess=True,
+        )
