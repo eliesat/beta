@@ -327,7 +327,7 @@ class FlexibleMenu(GUIComponent):
                     try:
                         logoPath = resolveFilename(
                             SCOPE_PLUGINS,
-                            "Extensions/ElieSatPanel/assets/icons/images-download.png",
+                            "Extensions/ElieSatPanel/assets/icons/images-backup.png",
                         )
                         if not fileExists(logoPath):
                             logoPath = resolveFilename(
