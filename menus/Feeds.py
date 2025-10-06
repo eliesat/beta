@@ -698,7 +698,7 @@ class Feeds(Screen):
     # ---------------- Main menu ----------------
     def load_main_menu(self, restore_index=False):
         self.in_submenu = False
-        self.main_categories = [("Feed", "Feed", "Feeds")]
+        self.main_categories = [("Feeds", "Feeds", "Feeds")]
         categories_display = [(x[0], x[1]) for x in self.main_categories]
         self["menu"].setList(categories_display)
 
