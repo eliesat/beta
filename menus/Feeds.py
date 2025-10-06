@@ -716,7 +716,7 @@ class Feeds(Screen):
             return
         self.previous_index = self["menu"].getSelectedIndex() or 0
 
-        if current[0] == "Feed":
+        if current[0] == "Feeds":  # <-- updated to match main category
             self.load_sub_menu("Feeds", current[0])
         else:
             self.run_selected_script()
@@ -901,7 +901,7 @@ class Feeds(Screen):
             if not self.in_submenu:
                 self.load_main_menu()
             else:
-                self.load_sub_menu("Feeds", "Feed")
+                self.load_sub_menu("Feeds", "Feeds")
 
             return True
         except Exception as e:
@@ -944,3 +944,4 @@ class Feeds(Screen):
             finishedCallback=lambda r: print("[Feeds] Plugin update finished:", r),
             closeOnSuccess=True,
         )
+
