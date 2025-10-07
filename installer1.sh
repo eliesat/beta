@@ -51,14 +51,20 @@ sleep 2
 
 # check and install libraries
 ###########################################
-# Check python
-pyVersion=$(python -c"from sys import version_info; print(version_info[0])")
+# Detect Python version (2 or 3)
+pyVersion=$(python -c"from sys import version_info; print(version_info[0])" 2>/dev/null)
 
+deps=()
+
+# Python-specific dependencies
 if [ "$pyVersion" = 3 ]; then
-deps+=( "python3-requests" "python3-six" )
+    deps+=( "python3-requests" "python3-six" "python3-lxml" )
 else
-deps+=( "python-requests" "python-six" )
+    deps+=( "python-requests" "python-six" "python-lxml" "python-futures" "python-subprocess32" )
 fi
+
+# Common tools and shell utilities
+deps+=( "bash" "wget" "curl" )
 
 if [ -f /etc/opkg/opkg.conf ]; then
   STATUS='/var/lib/opkg/status'
