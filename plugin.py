@@ -128,6 +128,8 @@ if all_missing:
 
 # ---------------- FLEXIBLE MENU ----------------
 class FlexibleMenu(GUIComponent):
+    _cached_logos = {}
+
     def __init__(self, list_):
         GUIComponent.__init__(self)
         self.l = eListboxPythonMultiContent()
@@ -137,29 +139,38 @@ class FlexibleMenu(GUIComponent):
         self.current = 0
         self.total_pages = 1
 
-        # Defaults
-        self.itemPerPage = 18
-        self.columns = 6
-        self.margin = 10
-        self.boxwidth = 200
-        self.boxheight = 220
-        self.activeboxwidth = 220
-        self.activeboxheight = 240
-        self.panelheight = 700
+        # -------------------- HD/FHD dynamic defaults --------------------
+        if getDesktop(0).size().width() >= 1920:
+            self.normalFont = gFont("Bold", 30)
+            self.selFont = gFont("Bold", 30)
+            self.boxwidth = 240
+            self.boxheight = 240
+            self.activeboxwidth = 285
+            self.activeboxheight = 285
+            self.margin = 30
+            self.panelheight = 570
+            self.itemPerPage = 18
+            self.columns = 6
+        else:
+            self.normalFont = gFont("Bold", 20)
+            self.selFont = gFont("Bold", 20)
+            self.boxwidth = 240
+            self.boxheight = 240
+            self.activeboxwidth = 285
+            self.activeboxheight = 285
+            self.margin = 30
+            self.panelheight = 570
+            self.itemPerPage = 18
+            self.columns = 6
 
-        # pager icons (optional)
         self.ptr_pagerleft = None
         self.ptr_pagerright = None
         try:
-            self.ptr_pagerleft = LoadPixmap(
-                resolveFilename(SCOPE_PLUGINS, "Extensions/ElieSatPanel/assets/icon/pager_left.png")
-            )
+            self.ptr_pagerleft = LoadPixmap(resolveFilename(SCOPE_PLUGINS, "Extensions/ElieSatPanel/assets/icon/pager_left.png"))
         except Exception:
             self.ptr_pagerleft = None
         try:
-            self.ptr_pagerright = LoadPixmap(
-                resolveFilename(SCOPE_PLUGINS, "Extensions/ElieSatPanel/assets/icon/pager_right.png")
-            )
+            self.ptr_pagerright = LoadPixmap(resolveFilename(SCOPE_PLUGINS, "Extensions/ElieSatPanel/assets/icon/pager_right.png"))
         except Exception:
             self.ptr_pagerright = None
 
@@ -170,13 +181,11 @@ class FlexibleMenu(GUIComponent):
 
         if PY3:
             import html
-
             self.selectedicon = str(html.unescape("&#xe837;"))
             self.unselectedicon = str(html.unescape("&#xe836;"))
         else:
             try:
                 import HTMLParser
-
                 h = HTMLParser.HTMLParser()
                 self.selectedicon = str(h.unescape("&#xe837;"))
                 self.unselectedicon = str(h.unescape("&#xe836;"))
@@ -187,70 +196,40 @@ class FlexibleMenu(GUIComponent):
     def applySkin(self, desktop, parent):
         attribs = []
         for (attrib, value) in getattr(self, "skinAttributes", []):
-            if attrib == "itemPerPage":
-                try:
+            try:
+                if attrib == "itemPerPage":
                     self.itemPerPage = int(value)
-                    if self.itemPerPage % 3 == 0:
-                        self.columns = 6 if self.itemPerPage >= 18 else max(1, self.itemPerPage // 2)
-                    else:
-                        self.columns = max(1, int(self.itemPerPage // 2))
-                except Exception:
-                    pass
-            elif attrib == "panelheight":
-                try:
+                    self.columns = max(1, self.itemPerPage // 2)
+                elif attrib == "panelheight":
                     self.panelheight = int(value)
-                except Exception:
-                    pass
-            elif attrib == "margin":
-                try:
+                elif attrib == "margin":
                     self.margin = int(value)
-                except Exception:
-                    pass
-            elif attrib == "boxSize":
-                if "," in value:
-                    try:
+                elif attrib == "boxSize":
+                    if "," in value:
                         self.boxwidth, self.boxheight = [int(v) for v in value.split(",")]
-                    except Exception:
-                        pass
-                else:
-                    try:
+                    else:
                         self.boxwidth = self.boxheight = int(value)
-                    except Exception:
-                        pass
-            elif attrib == "activeSize":
-                if "," in value:
-                    try:
+                elif attrib == "activeSize":
+                    if "," in value:
                         self.activeboxwidth, self.activeboxheight = [int(v) for v in value.split(",")]
-                    except Exception:
-                        pass
-                else:
-                    try:
+                    else:
                         self.activeboxwidth = self.activeboxheight = int(value)
-                    except Exception:
-                        pass
-            elif attrib == "size":
-                try:
+                elif attrib == "size":
                     self.listWidth, self.listHeight = [int(v) for v in value.split(",")]
                     if self.instance:
                         self.instance.resize(eSize(self.listWidth, self.listHeight))
-                except Exception:
-                    pass
-            elif attrib == "itemPixmap":
-                try:
+                elif attrib == "itemPixmap":
                     self.itemPixmap = LoadPixmap(value)
-                except Exception:
-                    self.itemPixmap = None
-            elif attrib == "selPixmap":
-                try:
+                elif attrib == "selPixmap":
                     self.selPixmap = LoadPixmap(value)
-                except Exception:
-                    self.selPixmap = None
-            else:
-                attribs.append((attrib, value))
+                else:
+                    attribs.append((attrib, value))
+            except Exception:
+                continue
 
-        self.l.setFont(0, gFont("Bold", 32))
+        self.l.setFont(0, self.normalFont)
+        self.l.setFont(1, self.selFont)
         self.l.setItemHeight(self.panelheight)
-
         self.skinAttributes = attribs
         self.buildEntry()
         return GUIComponent.applySkin(self, desktop, parent)
@@ -263,7 +242,6 @@ class FlexibleMenu(GUIComponent):
         instance.setSelectionEnable(0)
         instance.setScrollbarMode(eListbox.showNever)
 
-        # Pager controls
         self.pager_left = ePixmap(self.instance)
         self.pager_center = eLabel(self.instance)
         self.pager_right = ePixmap(self.instance)
@@ -286,9 +264,6 @@ class FlexibleMenu(GUIComponent):
                 self.pager_left.setPixmap(self.ptr_pagerleft)
             if self.ptr_pagerright:
                 self.pager_right.setPixmap(self.ptr_pagerright)
-        except Exception:
-            pass
-        try:
             self.pager_left.setScale(2)
             self.pager_right.setScale(2)
             self.pager_left.setAlphatest(2)
@@ -312,171 +287,103 @@ class FlexibleMenu(GUIComponent):
                 pass
 
     def setList(self, list_):
-        self.list = list_
+        self.list = list_ or []
         if self.instance:
             self.setL(True)
 
     def buildEntry(self):
-        # clear previous entries
         self.entries.clear()
-        if len(self.list) > 0:
-            width = self.boxwidth + self.margin
-            height = self.boxheight + self.margin
-            xoffset = (self.activeboxwidth - self.boxwidth) // 2 if self.activeboxwidth > self.boxwidth else 0
-            yoffset = (self.activeboxheight - self.boxheight) // 2 if self.activeboxheight > self.boxheight else 0
-            x = 0
-            y = 0
-            count = 0
-            page = 1
-            list_dummy = []
-            self.total_pages = int(math.ceil(float(len(self.list)) / self.itemPerPage)) if self.itemPerPage > 0 else 1
+        if not self.list:
+            return
+        width = self.boxwidth + self.margin
+        height = self.boxheight + self.margin
+        xoffset = (self.activeboxwidth - self.boxwidth) // 2
+        yoffset = (self.activeboxheight - self.boxheight) // 2
+        x = 0
+        y = 0
+        count = 0
+        page = 1
+        self.total_pages = int(math.ceil(float(len(self.list)) / self.itemPerPage)) if self.itemPerPage > 0 else 1
 
-            for elem in self.list:
-                # ensure tuple/list with a name at [0]
-                try:
-                    name = elem[0]
-                except Exception:
-                    continue
+        for elem in self.list:
+            try:
+                name = elem[0]
+            except Exception:
+                continue
 
-                if count >= self.itemPerPage:
-                    count = 0
-                    page += 1
-                    y = 0
+            if count >= self.itemPerPage:
+                count = 0
+                page += 1
+                y = 0
 
-                logo = None
+            # Cache logo for smoother performance
+            logo = self._cached_logos.get(name)
+            if not logo:
                 try:
                     icon_name = name.lower().replace(" ", "_") + ".png"
-                    logoPath = resolveFilename(
-                        SCOPE_PLUGINS,
-                        "Extensions/ElieSatPanel/assets/icons/{}".format(icon_name),
-                    )
+                    logoPath = resolveFilename(SCOPE_PLUGINS, f"Extensions/ElieSatPanel/assets/icons/{icon_name}")
                     if not fileExists(logoPath):
-                        logoPath = resolveFilename(
-                            SCOPE_PLUGINS,
-                            "Extensions/ElieSatPanel/assets/icons/default.png",
-                        )
+                        logoPath = resolveFilename(SCOPE_PLUGINS, "Extensions/ElieSatPanel/assets/icons/default.png")
                     if fileExists(logoPath):
                         logo = LoadPixmap(logoPath)
+                        self._cached_logos[name] = logo
                 except Exception:
                     logo = None
 
-                self.entries.update({
-                    name: {
-                        "active": (
-                            MultiContentEntryPixmap(
-                                pos=(x, y),
-                                size=(self.activeboxwidth, self.activeboxheight),
-                                png=self.selPixmap,
-                                flags=BT_SCALE,
-                            ),
-                            MultiContentEntryPixmapAlphaTest(
-                                pos=(x, y),
-                                size=(self.activeboxwidth, self.activeboxheight - 40),
-                                png=logo,
-                                flags=BT_SCALE | BT_ALIGN_CENTER | BT_KEEP_ASPECT_RATIO,
-                            ),
-                            MultiContentEntryText(
-                                pos=(x, y + self.activeboxheight - 35),
-                                size=(self.activeboxwidth, 30),
-                                font=0,
-                                text=name,
-                                flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER,
-                               color=0x00FF8C00
-                            ),
-                        ),
-                        "u_active": (
-                            MultiContentEntryPixmap(
-                                pos=(x + xoffset, y + yoffset),
-                                size=(self.boxwidth, self.boxheight),
-                                png=self.itemPixmap,
-                                flags=BT_SCALE,
-                            ),
-                            MultiContentEntryPixmapAlphaTest(
-                                pos=(x + xoffset, y + yoffset),
-                                size=(self.boxwidth, self.boxheight - 40),
-                                png=logo,
-                                flags=BT_SCALE | BT_ALIGN_CENTER | BT_KEEP_ASPECT_RATIO,
-                            ),
-                            MultiContentEntryText(
-                                pos=(x + xoffset, y + yoffset + self.boxheight - 45),
-                                size=(self.boxwidth, 30),
-                                font=0,
-                                text=name,
-                                flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER,
-                            ),
-                        ),
-                        "page": page,
-                    }
-                })
+            self.entries[name] = {
+                "active": (
+                    MultiContentEntryPixmap(pos=(x, y), size=(self.activeboxwidth, self.activeboxheight), png=self.selPixmap, flags=BT_SCALE),
+                    MultiContentEntryPixmapAlphaTest(pos=(x, y), size=(self.activeboxwidth, self.activeboxheight - 40), png=logo, flags=BT_SCALE | BT_ALIGN_CENTER | BT_KEEP_ASPECT_RATIO),
+                    MultiContentEntryText(pos=(x, y + self.activeboxheight - 40), size=(self.activeboxwidth, 30), font=0, text=name, flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER, color=0x00FF8C00),
+                ),
+                "u_active": (
+                    MultiContentEntryPixmap(pos=(x + xoffset, y + yoffset), size=(self.boxwidth, self.boxheight), png=self.itemPixmap, flags=BT_SCALE),
+                    MultiContentEntryPixmapAlphaTest(pos=(x + xoffset, y + yoffset), size=(self.boxwidth, self.boxheight - 40), png=logo, flags=BT_SCALE | BT_ALIGN_CENTER | BT_KEEP_ASPECT_RATIO),
+                    MultiContentEntryText(pos=(x + xoffset, y + yoffset + self.boxheight - 40), size=(self.boxwidth, 30), font=0, text=name, flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER),
+                ),
+                "page": page
+            }
 
-                x += width
-                list_dummy.append(name)
-                if len(list_dummy) == self.columns:
-                    list_dummy[:] = []
-                    x = 0
-                    y += height
-                count += 1
+            x += width
+            count += 1
+            if count % self.columns == 0:
+                x = 0
+                y += height
 
-        # update visual list
         self.setL()
 
     def setL(self, refresh=False):
         if refresh:
             self.entries.clear()
-            self.setpage()
             self.buildEntry()
             return
-        if len(self.entries) > 0 and len(self.list) > 0:
-            res = [None]
-            if self.current > (len(self.list) - 1):
-                self.current = (len(self.list) - 1)
-            try:
-                current = self.entries[self.list[self.current][0]]
-            except Exception:
-                # fallback to first entry
-                first_key = next(iter(self.entries))
-                current = self.entries[first_key]
-                self.current = 0
-            current_page = current["page"]
-            for _, value in self.entries.items():
-                if current_page == value["page"] and value != current:
-                    res.extend(value["u_active"])
-            res.extend(current["active"])
-            self.l.setList([res])
-            self.setpage()
-        else:
-            # no items: clear list
+        if not self.entries or not self.list:
             self.l.setList([])
+            return
+
+        res = [None]
+        if self.current >= len(self.list):
+            self.current = len(self.list) - 1
+        current_key = self.list[self.current][0]
+        current = self.entries.get(current_key)
+        if not current:
+            current_key = next(iter(self.entries))
+            current = self.entries[current_key]
+            self.current = 0
+
+        current_page = current["page"]
+        for _, value in self.entries.items():
+            if value["page"] == current_page and value != current:
+                res.extend(value["u_active"])
+        res.extend(current["active"])
+        try:
+            self.l.setList([res])
+        except Exception:
+            self.l.setList([])
+        self.setpage()
 
     def setpage(self):
-        if self.total_pages > 1:
-            self.pagetext = ""
-            if len(self.list) > 0:
-                for i in range(1, self.total_pages + 1):
-                    if self.getCurrentPage() > 0 and i == self.getCurrentPage():
-                        self.pagetext += " " + self.selectedicon
-                    else:
-                        self.pagetext += " " + self.unselectedicon
-                self.pagetext += " "
-            self.pagelabel.setText(self.pagetext)
-            try:
-                w = int(self.pagelabel.calculateSize().width() / 2)
-            except Exception:
-                w = 100
-            if self.total_pages > 1:
-                y = self.panelheight - 10
-                try:
-                    self.pager_center.resize(eSize((w * 2), 20))
-                    self.pager_center.move(ePoint((self.listWidth // 2) - w + 20, y))
-                    self.pager_left.move(ePoint((self.listWidth // 2) - w, y))
-                    self.pager_right.move(ePoint((self.listWidth // 2) + (w - 16), y))
-                except Exception:
-                    pass
-                self.pager_left.show()
-                self.pager_right.show()
-                self.pager_center.show()
-                self.pagelabel.show()
-        else:
+        if self.total_pages <= 1:
             try:
                 self.pager_left.hide()
                 self.pager_right.hide()
@@ -484,15 +391,39 @@ class FlexibleMenu(GUIComponent):
                 self.pagelabel.hide()
             except Exception:
                 pass
+            return
+
+        self.pagetext = ""
+        for i in range(1, self.total_pages + 1):
+            if i == self.getCurrentPage():
+                self.pagetext += " " + self.selectedicon
+            else:
+                self.pagetext += " " + self.unselectedicon
+        self.pagetext += " "
+        self.pagelabel.setText(self.pagetext)
+
+        try:
+            w = int(self.pagelabel.calculateSize().width() / 2)
+        except Exception:
+            w = 100
+        y = self.panelheight - 10
+        try:
+            self.pager_center.resize(eSize(w * 2, 20))
+            self.pager_center.move(ePoint((self.listWidth // 2) - w + 20, y))
+            self.pager_left.move(ePoint((self.listWidth // 2) - w, y))
+            self.pager_right.move(ePoint((self.listWidth // 2) + (w - 16), y))
+            self.pager_left.show()
+            self.pager_right.show()
+            self.pager_center.show()
+            self.pagelabel.show()
+        except Exception:
+            pass
 
     def getCurrentPage(self):
-        if len(self.entries) > 0 and len(self.list) > 0:
-            if self.current > (len(self.list) - 1):
-                self.current = (len(self.list) - 1)
-            current = self.entries.get(self.list[self.current][0], None)
-            if current:
-                return current["page"]
-        return 0
+        if not self.entries or not self.list:
+            return 0
+        current = self.entries.get(self.list[self.current][0])
+        return current["page"] if current else 0
 
     def left(self):
         self.move(1, "backwards")
@@ -504,29 +435,29 @@ class FlexibleMenu(GUIComponent):
         self.move(self.columns, "backwards")
 
     def down(self):
-        if len(self.list) > 0:
-            if self.current + self.columns > (len(self.list) - 1) and self.current != (len(self.list) - 1):
-                self.current = len(self.list) - 1
-                self.setL()
-                self.selectionChanged()
-            else:
-                self.move(self.columns, "forward")
-
-    def move(self, step, direction):
-        if len(self.list) > 0:
-            if direction == "backwards":
-                self.current -= step
-            else:
-                self.current += step
-            if self.current > (len(self.list) - 1):
-                self.current = 0
-            if self.current < 0:
-                self.current = len(self.list) - 1
+        if self.list and self.current + self.columns > len(self.list) - 1 and self.current != len(self.list) - 1:
+            self.current = len(self.list) - 1
             self.setL()
             self.selectionChanged()
+        else:
+            self.move(self.columns, "forward")
+
+    def move(self, step, direction):
+        if not self.list:
+            return
+        if direction == "backwards":
+            self.current -= step
+        else:
+            self.current += step
+        if self.current >= len(self.list):
+            self.current = 0
+        elif self.current < 0:
+            self.current = len(self.list) - 1
+        self.setL()
+        self.selectionChanged()
 
     def getCurrent(self):
-        if len(self.list) > 0:
+        if self.list:
             return self.list[self.current]
 
     def getSelectedIndex(self):
