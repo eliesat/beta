@@ -77,55 +77,6 @@ except ImportError:
 
 installer = 'https://raw.githubusercontent.com/eliesat/beta/main/installer1.sh'
 
-# ---------------- PANEL DIRECTORIES ----------------
-PANEL_DIRS = [
-    "/media/hdd/ElieSatPanel",   # default
-    "/media/usb/ElieSatPanel",
-    "/media/mmc/ElieSatPanel"
-]
-CONFIG_FILE = "/media/hdd/ElieSatPanel/panel_dir.cfg"
-
-def save_last_dir(directory):
-    try:
-        folder = os.path.dirname(CONFIG_FILE)
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-        with open(CONFIG_FILE, "w") as f:
-            f.write(directory)
-    except Exception as e:
-        print("[ElieSatPanel] save_last_dir error:", e)
-
-def load_last_dir():
-    try:
-        if os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, "r") as f:
-                dir = f.read().strip()
-                if dir in PANEL_DIRS:
-                    return dir
-    except Exception as e:
-        print("[ElieSatPanel] load_last_dir error:", e)
-    return PANEL_DIRS[0]  # default HDD
-
-# ---------------- CHECK IF ALL FOLDERS ARE MISSING ----------------
-all_missing = all(not os.path.exists(folder) for folder in PANEL_DIRS)
-
-# ---------------- CREATE FOLDERS + CONFIG ONLY IF ALL MISSING ----------------
-if all_missing:
-    for folder in PANEL_DIRS:
-        try:
-            os.makedirs(folder)
-            print(f"[ElieSatPanel] Created folder: {folder}")
-        except Exception as e:
-            print(f"[ElieSatPanel] Failed to create folder {folder}: {e}")
-
-    # Create config file in HDD folder
-    try:
-        with open(CONFIG_FILE, "w") as f:
-            f.write(PANEL_DIRS[0])  # default HDD path
-        print(f"[ElieSatPanel] Created default config file: {CONFIG_FILE}")
-    except Exception as e:
-        print(f"[ElieSatPanel] Failed to create config file: {e}")
-
 # ---------------- FLEXIBLE MENU ----------------
 class FlexibleMenu(GUIComponent):
     _cached_logos = {}
@@ -138,6 +89,7 @@ class FlexibleMenu(GUIComponent):
         self.onSelectionChanged = []
         self.current = 0
         self.total_pages = 1
+        self._moving = False  # debounce for smooth nav
 
         # -------------------- HD/FHD dynamic defaults --------------------
         if getDesktop(0).size().width() >= 1920:
@@ -275,6 +227,10 @@ class FlexibleMenu(GUIComponent):
         self.pager_center.hide()
         self.pagelabel.hide()
 
+        # Force first full draw after instance is ready
+        from threading import Timer
+        Timer(0.05, self.setL).start()
+
     def preWidgetRemove(self, instance):
         instance.setContent(None)
         self.instance = None
@@ -316,7 +272,6 @@ class FlexibleMenu(GUIComponent):
                 page += 1
                 y = 0
 
-            # Cache logo for smoother performance
             logo = self._cached_logos.get(name)
             if not logo:
                 try:
@@ -425,14 +380,39 @@ class FlexibleMenu(GUIComponent):
         current = self.entries.get(self.list[self.current][0])
         return current["page"] if current else 0
 
+    # -------------------- Optimized Smooth Navigation --------------------
+    def _debounced_move(self, step, direction):
+        if self._moving:
+            return
+        self._moving = True
+        try:
+            if not self.list:
+                return
+            if direction == "backwards":
+                self.current -= step
+            else:
+                self.current += step
+            if self.current >= len(self.list):
+                self.current = 0
+            elif self.current < 0:
+                self.current = len(self.list) - 1
+            self.setL()
+            self.selectionChanged()
+        finally:
+            from threading import Timer
+            Timer(0.07, self._release_nav_lock).start()
+
+    def _release_nav_lock(self):
+        self._moving = False
+
     def left(self):
-        self.move(1, "backwards")
+        self._debounced_move(1, "backwards")
 
     def right(self):
-        self.move(1, "forward")
+        self._debounced_move(1, "forward")
 
     def up(self):
-        self.move(self.columns, "backwards")
+        self._debounced_move(self.columns, "backwards")
 
     def down(self):
         if self.list and self.current + self.columns > len(self.list) - 1 and self.current != len(self.list) - 1:
@@ -440,21 +420,9 @@ class FlexibleMenu(GUIComponent):
             self.setL()
             self.selectionChanged()
         else:
-            self.move(self.columns, "forward")
+            self._debounced_move(self.columns, "forward")
 
-    def move(self, step, direction):
-        if not self.list:
-            return
-        if direction == "backwards":
-            self.current -= step
-        else:
-            self.current += step
-        if self.current >= len(self.list):
-            self.current = 0
-        elif self.current < 0:
-            self.current = len(self.list) - 1
-        self.setL()
-        self.selectionChanged()
+    # ---------------------------------------------------------------------
 
     def getCurrent(self):
         if self.list:
