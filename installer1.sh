@@ -4,16 +4,16 @@ clear >/dev/null 2>&1
 
 #configuration
 ###########################################
-plugin=beta-main
-version='3.50'
-changelog='1.08.10.2025 /hd fhd skins'
-url=https://github.com/eliesat/beta/archive/main.tar.gz
+plugin=main
+version='3.51'
+changelog='1.25.08.2025'
+url=https://github.com/eliesat/eliesatpanel/archive/main.tar.gz
 package=/tmp/$plugin.tar.gz
 rm -rf /tmp/$plugin.tar.gz >/dev/null 2>&1
 
 # Check script url connectivity and install eliesatpanel
 ###########################################
-if wget -q --method=HEAD https://github.com/eliesat/beta/blob/main/installer1.sh; then
+if wget -q --method=HEAD https://github.com/eliesat/eliesatpanel/blob/main/installer.sh; then
 connection=ok
 else
 echo "> Server is down, try again later..."
@@ -51,20 +51,14 @@ sleep 2
 
 # check and install libraries
 ###########################################
-# Detect Python version (2 or 3)
-pyVersion=$(python -c"from sys import version_info; print(version_info[0])" 2>/dev/null)
+# Check python
+pyVersion=$(python -c"from sys import version_info; print(version_info[0])")
 
-deps=()
-
-# Python-specific dependencies
 if [ "$pyVersion" = 3 ]; then
-    deps+=( "python3-requests" "python3-six" "python3-lxml" )
+deps+=( "python3-requests" "python3-six" )
 else
-    deps+=( "python-requests" "python-six" "python-lxml" "python-futures" "python-subprocess32" )
+deps+=( "python-requests" "python-six" )
 fi
-
-# Common tools and shell utilities
-deps+=( "bash" "wget" "curl" )
 
 if [ -f /etc/opkg/opkg.conf ]; then
   STATUS='/var/lib/opkg/status'
@@ -116,39 +110,9 @@ if [ $extract -eq 0 ]; then
     mkdir -p /usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel
     create=$?
     if [ $create -eq 0 ]; then
-    mv /tmp/beta-main/* /usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/ >/dev/null 2>&1
-    rm -rf /tmp/beta-main >/dev/null 2>&1
+    mv /tmp/eliesatpanel-main/* /usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/ >/dev/null 2>&1
+    rm -rf /tmp/eliesatpanel-main >/dev/null 2>&1
     fi
-
-RAW_URL="https://raw.githubusercontent.com/eliesat/eliesatpanel/main/sub"
-
-TARGET_DIR="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/data"
-
-# Check if target directory exists
-if [ ! -d "$TARGET_DIR" ]; then
-    exit 1
-fi
-
-cd "$TARGET_DIR" || exit
-
-FILES=(
-    "allinone"
-    "display"
-    "extensions"
-    "feeds"
-    "imagesb"
-    "imagesd"
-    "panels"
-    "picons"
-    "settings"
-    "skins"
-    "softcams"
-)
-
-for f in "${FILES[@]}"; do
-    wget -q "$RAW_URL/$f" -O "$f"
-done
-
 print_message "> Eliesatpanel is installed successfully and up to date ..."
 echo
 sleep 2
