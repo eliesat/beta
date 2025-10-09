@@ -104,15 +104,20 @@ class PanelManager(Screen):
         <widget name="password" position="460,110" size="780,40" font="Bold;32"
             foregroundColor="orange" transparent="1"/>
 
-        <widget name="mac_label" position="40,170" size="400,40" font="Bold;32"
+        <widget name="dir_label" position="40,170" size="400,50" font="Bold;32"
+            foregroundColor="yellow" transparent="1" />
+        <widget name="dir" position="460,170" size="780,50" font="Bold;32"
+            foregroundColor="orange" transparent="1" />
+
+        <widget name="device_label" position="40,230" size="400,40" font="Bold;32"
             foregroundColor="yellow" transparent="1"/>
-        <widget name="mac_value" position="460,170" size="780,40" font="Bold;32"
+        <widget name="device" position="460,230" size="780,40" font="Bold;32"
             foregroundColor="orange" transparent="1"/>
 
-        <widget name="dir_label" position="40,230" size="400,50" font="Bold;32"
-            foregroundColor="yellow" transparent="1" />
-        <widget name="dir" position="460,230" size="780,50" font="Bold;32"
-            foregroundColor="orange" transparent="1" />
+        <widget name="mac_label" position="40,290" size="400,40" font="Bold;32"
+            foregroundColor="yellow" transparent="1"/>
+        <widget name="mac_value" position="460,290" size="780,40" font="Bold;32"
+            foregroundColor="orange" transparent="1"/>
 
         <widget name="focus_hint" position="40,560" size="1200,40" font="Bold;30"
             foregroundColor="orange" transparent="1" halign="center"/>
@@ -138,25 +143,29 @@ class PanelManager(Screen):
         self.username_value = "ElieSat"
         self.password_value = ""
         self.mac = get_mac_address() or "Unknown"
+        self.device_name = os.uname().nodename  # Device Name
         self.expected_password = make_password_from_mac(self.mac)
 
+        # ---------------- Labels ----------------
         self["title_custom"] = Label("Panel Manager")
         self["username_label"] = Label("Username:")
         self["username"] = Label(self.username_value)
         self["password_label"] = Label("Password:")
         self["password"] = Label("")
+        self["dir_label"] = Label("Default Folder Path:")
+        self["dir"] = Label(self.current_dir)
+        self["device_label"] = Label("Device Name:")
+        self["device"] = Label(self.device_name)
         self["mac_label"] = Label("MAC Address:")
         self["mac_value"] = Label(self.mac)
         self["focus_hint"] = Label("")
-        self["dir_label"] = Label("Default Folder Path:")
-        self["dir"] = Label(self.current_dir)
 
         self["red_label"] = Label("Unlock")
         self["green_label"] = Label("Apply Path")
         self["yellow_label"] = Label("Cycle")
-        self["blue_label"] = Label("Exit")
+        self["blue_label"] = Label("Reset")  # Renamed
 
-        self.focus_items = ["username", "password", "dir"]
+        self.focus_items = ["username", "password", "dir", "device"]
         self.focus_index = 0
         self._refresh_fields_and_focus()
 
@@ -167,7 +176,7 @@ class PanelManager(Screen):
                 "red": self.apply_password,
                 "green": self.apply_dir,
                 "yellow": self.cycle_right,
-                "blue": self.close,
+                "blue": self.reset_password,  # Blue now resets password
                 "cancel": self.close,
                 "up": self.focus_up,
                 "down": self.focus_down,
@@ -185,11 +194,13 @@ class PanelManager(Screen):
     def _refresh_fields_and_focus(self):
         sel = self.focus_items[self.focus_index]
         if sel == "username":
-            hint = "Selected: Username  (OK to edit)"
+            hint = "Selected: Username (OK to edit)"
         elif sel == "password":
-            hint = "Selected: Password  (OK to edit, Red = Unlock)"
+            hint = "Selected: Password (OK to edit, Red = Unlock)"
+        elif sel == "dir":
+            hint = "Selected: Folder (OK or Green = Apply Path; Left/Right = Cycle)"
         else:
-            hint = "Selected: Folder  (OK or Green = Apply Path; Left/Right = Cycle)"
+            hint = "Selected: Device Name (OK to edit)"
         self["focus_hint"].setText(hint)
 
         uname_display = self.username_value
@@ -206,6 +217,11 @@ class PanelManager(Screen):
         if sel == "dir":
             dir_display = "> " + dir_display
         self["dir"].setText(dir_display)
+
+        device_display = self.device_name
+        if sel == "device":
+            device_display = "> " + device_display
+        self["device"].setText(device_display)
 
         self["mac_value"].setText(self.mac)
 
@@ -225,6 +241,8 @@ class PanelManager(Screen):
             self.session.openWithCallback(self._onUsernameEntered, VirtualKeyBoard, title="Enter username", text=self.username_value)
         elif sel == "password":
             self.session.openWithCallback(self._onPasswordEntered, VirtualKeyBoard, title="Enter password", text=self.password_value)
+        elif sel == "device":
+            self.session.openWithCallback(self._onDeviceEntered, VirtualKeyBoard, title="Enter device name", text=self.device_name)
         else:
             self.apply_dir()
 
@@ -240,9 +258,14 @@ class PanelManager(Screen):
         self.password_value = result.strip()
         self._refresh_fields_and_focus()
 
+    def _onDeviceEntered(self, result):
+        if result is None:
+            return
+        self.device_name = result.strip()
+        self._refresh_fields_and_focus()
+
     # ---------------- Unlock only ----------------
     def apply_password(self):
-        """Handle only password unlocking."""
         if is_unlocked():
             self.session.open(MessageBox, "Already unlocked on this device.", MessageBox.TYPE_INFO)
             return
@@ -264,7 +287,6 @@ class PanelManager(Screen):
 
     # ---------------- Apply folder only ----------------
     def apply_dir(self):
-        """Apply and save only the selected default folder path."""
         try:
             for folder in PANEL_DIRS:
                 cfg_file = os.path.join(folder, "panel_dir.cfg")
@@ -281,6 +303,12 @@ class PanelManager(Screen):
             self.session.open(MessageBox, f"📁 Default folder path applied:\n{self.current_dir}", MessageBox.TYPE_INFO)
         except Exception as e:
             self.session.open(MessageBox, f"Failed to apply folder:\n{e}", MessageBox.TYPE_ERROR)
+
+    # ---------------- Reset password ----------------
+    def reset_password(self):
+        self.password_value = ""
+        self._refresh_fields_and_focus()
+        self.session.open(MessageBox, "Password has been reset.", MessageBox.TYPE_INFO)
 
     # ---------------- Folder cycling ----------------
     def cycle_left(self):
