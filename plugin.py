@@ -46,6 +46,8 @@ from Plugins.Extensions.ElieSatPanel.menus.Iptvadder import Iptvadder
 from Plugins.Extensions.ElieSatPanel.menus.Cccamadder import Cccamadder
 from Plugins.Extensions.ElieSatPanel.menus.News import News
 from Plugins.Extensions.ElieSatPanel.menus.Scripts import Scripts
+from Plugins.Extensions.ElieSatPanel.menus.PanelManager import PanelManager
+from Plugins.Extensions.ElieSatPanel.menus.PanelManager import is_unlocked, set_unlocked
 from Plugins.Extensions.ElieSatPanel.menus.Addons import Addons
 from Plugins.Extensions.ElieSatPanel.menus.Display import Display
 from Plugins.Extensions.ElieSatPanel.menus.Feeds import Feeds
@@ -436,134 +438,10 @@ class FlexibleMenu(GUIComponent):
         if self.instance:
             self.setL()
 
-# ---------------- PANEL MANAGER SCREEN ----------------
-
-class PanelManager(Screen):
-    skin = """
-    <screen name="PanelManager" position="center,center" size="1280,720" title="">
-        <!-- Background -->
-        <ePixmap position="0,0" zPosition="-1" size="1280,720"
-            pixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/background/panel_bg.png"/>
-
-        <!-- Custom Title -->
-        <widget name="title_custom" position="550,0" size="400,50" font="Bold;34"
-backgroundColor="#000000" foregroundColor="yellow" transparent="0" />
-
-        <!-- Label for Default Folder -->
-        <widget name="dir_label" position="40,100" size="1280,50" font="Bold;32"
-            foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
-
-        <!-- Current Directory (aligned right) -->
-        <widget name="dir" position="460,100" size="780,50" font="Bold;32"
-            foregroundColor="orange" backgroundColor="#000000" transparent="1" />
-
-        <!-- Colored Buttons at the bottom -->
-        <ePixmap pixmap="skin_default/buttons/red.png" position="100,650" size="140,40" alphatest="on"/>
-        <ePixmap pixmap="skin_default/buttons/green.png" position="350,650" size="140,40" alphatest="on"/>
-        <ePixmap pixmap="skin_default/buttons/yellow.png" position="600,650" size="140,40" alphatest="on"/>
-        <ePixmap pixmap="skin_default/buttons/blue.png" position="850,650" size="140,40" alphatest="on"/>
-
-        <!-- Labels for button -->
-        <widget name="red_label" position="100,690" size="140,40" font="Bold;32" halign="center" foregroundColor="yellow" transparent="1"/>
-        <widget name="green_label" position="350,690" size="140,40" font="Bold;32" halign="center" foregroundColor="yellow" transparent="1"/>
-        <widget name="yellow_label" position="600,690" size="140,40" font="Bold;32" halign="center" foregroundColor="yellow" transparent="1"/>
-        <widget name="blue_label" position="850,690" size="140,40" font="Bold;32" halign="center" foregroundColor="yellow" transparent="1"/>
-    </screen>"""
-
-    def __init__(self, session):
-        Screen.__init__(self, session)
-        self.dir_index = PANEL_DIRS.index(load_last_dir())
-        self.current_dir = PANEL_DIRS[self.dir_index]
-
-        # Custom title
-        self["title_custom"] = Label("Panel Manager")
-
-        # Static label
-        self["dir_label"] = Label("Default Folder Path:")
-
-        # Dynamic current directory
-        self["dir"] = Label(self.current_dir)
-
-        # Button labels
-        self["red_label"] = Label("Apply")
-        self["green_label"] = Label("Browse")
-        self["yellow_label"] = Label("Cycle")
-        self["blue_label"] = Label("Exit")
-
-        # Actions
-        self["actions"] = ActionMap(
-            ["OkCancelActions", "ColorActions", "DirectionActions"],
-            {
-                "ok": self.apply_dir,       # Apply directory
-                "red": self.apply_dir,
-                "green": self.browse_dir,   # Browse folder
-                "yellow": self.cycle_right, # Cycle forward
-                "blue": self.close,         # Exit
-                "cancel": self.close,
-                "left": self.cycle_left,    # Cycle backward
-                "right": self.cycle_right   # Cycle forward
-            }, -1
-        )
-
-    # --- Apply / create directory ---
-    def apply_dir(self):
-        try:
-            # Remove panel_dir.cfg from all other directories
-            for folder in PANEL_DIRS:
-                cfg_file = os.path.join(folder, "panel_dir.cfg")
-                if folder != self.current_dir and os.path.exists(cfg_file):
-                    os.remove(cfg_file)
-                    print(f"[ElieSatPanel] Removed old config: {cfg_file}")
-
-            # Create the applied directory if it doesn't exist
-            if not os.path.exists(self.current_dir):
-                os.makedirs(self.current_dir)
-                print(f"[ElieSatPanel] Created directory: {self.current_dir}")
-
-            # Write panel_dir.cfg in the applied directory
-            cfg_file = os.path.join(self.current_dir, "panel_dir.cfg")
-            with open(cfg_file, "w") as f:
-                f.write(self.current_dir)
-                print(f"[ElieSatPanel] Saved new config in: {cfg_file}")
-
-            self.session.open(MessageBox, f"Directory applied:\n{self.current_dir}", MessageBox.TYPE_INFO)
-
-        except Exception as e:
-            self.session.open(MessageBox, f"Failed to apply folder:\n{e}", MessageBox.TYPE_ERROR)
-
-        self.close()
-
-    # --- Browse directory ---
-    def browse_dir(self):
-        try:
-            from Screens.FileBrowser import FileBrowser
-            if os.path.exists(self.current_dir):
-                self.session.openWithCallback(self.folder_selected, FileBrowser, directory=self.current_dir, type=FileBrowser.TYPE_DIR)
-            else:
-                self.session.open(MessageBox, f"Directory does not exist:\n{self.current_dir}", MessageBox.TYPE_ERROR)
-        except Exception as e:
-            self.session.open(MessageBox, f"Cannot browse folder:\n{e}", MessageBox.TYPE_ERROR)
-
-    # --- Cycle directories left ---
-    def cycle_left(self):
-        self.dir_index = (self.dir_index - 1) % len(PANEL_DIRS)
-        self.current_dir = PANEL_DIRS[self.dir_index]
-        self["dir"].setText(self.current_dir)
-
-    # --- Cycle directories right ---
-    def cycle_right(self):
-        self.dir_index = (self.dir_index + 1) % len(PANEL_DIRS)
-        self.current_dir = PANEL_DIRS[self.dir_index]
-        self["dir"].setText(self.current_dir)
-
-    # --- Callback after folder selection ---
-    def folder_selected(self, selected):
-        if selected:
-            self.current_dir = selected
-            self["dir"].setText(self.current_dir)
-
 
 # ---------------- MAIN PANEL ----------------
+from Plugins.Extensions.ElieSatPanel.menus.PanelManager import PanelManager, is_unlocked
+
 class EliesatPanel(Screen):
     skin = ""
 
@@ -672,7 +550,7 @@ class EliesatPanel(Screen):
                 "right": self.right,
                 "up": self.up,
                 "down": self.down,
-                "menu": self.open_directory_selector,  # Open directory selector
+                "menu": self.open_directory_selector,  # Always open PanelManager
             },
             -1,
         )
@@ -688,6 +566,12 @@ class EliesatPanel(Screen):
         current = self["menu"].getCurrent()
         if current:
             name = current[0]
+
+            # Lock submenus if not unlocked
+            if not is_unlocked() and name not in ("Tools-panel", "About"):
+                self.session.open(MessageBox, "Panel is locked. Unlock via Menu button first.", type=MessageBox.TYPE_ERROR, timeout=5)
+                return
+
             submenu_map = {
                 "Addons": Addons,
                 "Display": Display,
@@ -709,24 +593,37 @@ class EliesatPanel(Screen):
 
     # --- Color button methods ---
     def openIptvadder(self):
+        if not is_unlocked():
+            self.session.open(MessageBox, "Panel is locked. Unlock via Menu button first.", type=MessageBox.TYPE_ERROR, timeout=5)
+            return
         try: self.session.open(Iptvadder)
         except: self.session.open(MessageBox, "Cannot open Iptvadder.", type=MessageBox.TYPE_ERROR, timeout=5)
 
     def openCccamadder(self):
+        if not is_unlocked():
+            self.session.open(MessageBox, "Panel is locked. Unlock via Menu button first.", type=MessageBox.TYPE_ERROR, timeout=5)
+            return
         try: self.session.open(Cccamadder)
         except: self.session.open(MessageBox, "Cannot open Cccamadder.", type=MessageBox.TYPE_ERROR, timeout=5)
 
     def openNews(self):
+        if not is_unlocked():
+            self.session.open(MessageBox, "Panel is locked. Unlock via Menu button first.", type=MessageBox.TYPE_ERROR, timeout=5)
+            return
         try: self.session.open(News)
         except: self.session.open(MessageBox, "Cannot open News.", type=MessageBox.TYPE_ERROR, timeout=5)
 
     def openScripts(self):
+        if not is_unlocked():
+            self.session.open(MessageBox, "Panel is locked. Unlock via Menu button first.", type=MessageBox.TYPE_ERROR, timeout=5)
+            return
         try: self.session.open(Scripts)
         except: self.session.open(MessageBox, "Cannot open Scripts.", type=MessageBox.TYPE_ERROR, timeout=5)
 
     # --- Menu button ---
     def open_directory_selector(self):
-     self.session.open(PanelManager)
+        # Always allow opening PanelManager to unlock
+        self.session.open(PanelManager)
 
     # --- Description / Page info updates ---
     def updateDescription(self):
