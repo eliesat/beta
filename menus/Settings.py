@@ -473,7 +473,7 @@ class FlexibleMenu(GUIComponent):
             self.setL()
 
 # ---------------- S E T T I N G S   C L A S S ----------------
-INSTALLER_URL = "https://raw.githubusercontent.com/eliesat/beta/main/installer1.sh"
+INSTALLER_URL = "https://raw.githubusercontent.com/eliesat/beta/main/installer.sh"
 EXTENSIONS_URL = "https://raw.githubusercontent.com/eliesat/eliesatpanel/refs/heads/main/sub/settings"
 LOCAL_EXTENSIONS = "/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/data/settings"
 

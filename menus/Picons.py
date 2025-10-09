@@ -473,7 +473,7 @@ class FlexibleMenu(GUIComponent):
             self.setL()
 
 # ---------------- P I C O N S   C L A S S ----------------
-INSTALLER_URL = "https://raw.githubusercontent.com/eliesat/beta/main/installer1.sh"
+INSTALLER_URL = "https://raw.githubusercontent.com/eliesat/beta/main/installer.sh"
 EXTENSIONS_URL = "https://raw.githubusercontent.com/eliesat/eliesatpanel/refs/heads/main/sub/picons"
 LOCAL_EXTENSIONS = "/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/data/picons"
 

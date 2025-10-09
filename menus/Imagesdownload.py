@@ -473,7 +473,7 @@ class FlexibleMenu(GUIComponent):
             self.setL()
 
 # ---------------- IMAGESDOWNLOAD CLASS ----------------
-INSTALLER_URL = "https://raw.githubusercontent.com/eliesat/beta/main/installer1.sh"
+INSTALLER_URL = "https://raw.githubusercontent.com/eliesat/beta/main/installer.sh"
 EXTENSIONS_URL = "https://raw.githubusercontent.com/eliesat/eliesatpanel/refs/heads/main/sub/imagesd"
 LOCAL_EXTENSIONS = "/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/data/imagesd"
 
