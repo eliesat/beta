@@ -75,7 +75,7 @@ except ImportError:
     # Python 2
     from urllib2 import Request as compat_Request, urlopen as compat_urlopen
 
-installer = 'https://raw.githubusercontent.com/eliesat/beta/main/installer1.sh'
+installer = 'https://raw.githubusercontent.com/eliesat/beta/main/installer.sh'
 
 # ---------------- FLEXIBLE MENU ----------------
 class FlexibleMenu(GUIComponent):
