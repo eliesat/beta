@@ -111,19 +111,9 @@ def get_mac_address():
         return None
 
 def make_password_from_mac(mac):
-    """
-    New logic:
-    - Split MAC into parts (by :, -, . or as raw pairs).
-    - Build `base` from the first character of each of the first 4 parts.
-      e.g. parts[:4] = ['44','B1','C2','33'] -> base = '4BC3'
-    - Extract digits from base (concatenate them) -> e.g. '43' or '4153'
-    - Multiply that digit number by 2 -> e.g. 43 * 2 = 86
-    - Final password = f"{multiplied_value}{base}" -> '864BC3'
-    """
     if not mac:
         return None
     mac = mac.strip().upper()
-    # split into parts
     if ":" in mac or "-" in mac or "." in mac:
         parts = re.split(r"[:\-\.]", mac)
     else:
@@ -131,12 +121,10 @@ def make_password_from_mac(mac):
     if len(parts) < 4:
         return None
     try:
-        # base = first character of first 4 parts
         base = "".join(p[0] for p in parts[:4])
-        # digits only from base
         digits_str = "".join(ch for ch in base if ch.isdigit())
         if digits_str:
-            mult = int(digits_str) * 2
+            mult = int(digits_str) * 5
         else:
             mult = 0
         return f"{mult}{base}"
