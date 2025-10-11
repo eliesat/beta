@@ -11,6 +11,7 @@ from Components.ActionMap import ActionMap
 
 # ---------------- Unlock marker path ----------------
 UNLOCK_FLAG = "/etc/eliesat_unlocked.cfg"
+MAIN_MAC_FILE = "/etc/eliesat_main_mac.cfg"  # Stores main MAC for password generation
 
 # ---------------- PANEL DIRECTORIES ----------------
 PANEL_DIRS = [
@@ -46,11 +47,9 @@ def load_last_dir():
                         return dir
             except Exception as e:
                 print(f"[ElieSatPanel] Failed to read last dir: {e}")
-    # fallback default
     return PANEL_DIRS[0]
 
 def create_subscription_file(directory):
-    """Create an empty subscription.txt in the selected directory."""
     try:
         path = os.path.join(directory, SUB_FILE)
         if not os.path.exists(path):
@@ -60,7 +59,6 @@ def create_subscription_file(directory):
         print(f"[ElieSatPanel] Failed to create subscription file in {directory}: {e}")
 
 def delete_subscription_files(except_dir=None):
-    """Delete subscription.txt in all panel dirs except the selected one."""
     for folder in PANEL_DIRS:
         if folder == except_dir:
             continue
@@ -86,7 +84,6 @@ for folder in PANEL_DIRS:
         os.makedirs(folder)
         print(f"[ElieSatPanel] Created missing folder: {folder}")
 
-# Ensure default folder has config and subscription
 ensure_panel_folder(PANEL_DIRS[0])
 
 # ---------------- MAC / Password helpers ----------------
@@ -109,6 +106,25 @@ def get_mac_address():
         return mac
     except Exception:
         return None
+
+def get_main_mac():
+    if os.path.exists(MAIN_MAC_FILE):
+        try:
+            with open(MAIN_MAC_FILE, "r") as f:
+                mac = f.read().strip().upper()
+                if mac:
+                    return mac
+        except Exception:
+            pass
+    # First run: save current MAC as main MAC
+    mac = get_mac_address()
+    if mac:
+        try:
+            with open(MAIN_MAC_FILE, "w") as f:
+                f.write(mac)
+        except Exception:
+            pass
+    return mac
 
 def make_password_from_mac(mac):
     if not mac:
@@ -136,16 +152,16 @@ def is_unlocked():
         return False
     try:
         with open(UNLOCK_FLAG, "r") as f:
-            saved_mac = f.read().strip().upper()
-        current_mac = get_mac_address()
-        return bool(saved_mac and current_mac and saved_mac == current_mac)
+            saved_password = f.read().strip()
+        expected_password = make_password_from_mac(get_main_mac())
+        return bool(saved_password and expected_password and saved_password == expected_password)
     except Exception:
         return False
 
-def set_unlocked(mac):
+def set_unlocked(password):
     try:
         with open(UNLOCK_FLAG, "w") as f:
-            f.write((mac or "").strip().upper())
+            f.write((password or "").strip())
         return True
     except Exception:
         return False
@@ -199,7 +215,7 @@ class PanelManager(Screen):
 
         self.username_value = "ElieSat"
         self.password_value = ""
-        self.mac = get_mac_address() or "Unknown"
+        self.mac = get_main_mac() or "Unknown"
         self.device_name = os.uname().nodename
         self.expected_password = make_password_from_mac(self.mac)
 
@@ -311,7 +327,7 @@ class PanelManager(Screen):
             self.password_value.strip().upper() != self.expected_password.strip().upper()):
             self.session.open(MessageBox, "Access denied — wrong username or password.", MessageBox.TYPE_ERROR)
             return
-        if set_unlocked(self.mac):
+        if set_unlocked(self.expected_password):
             self.session.open(MessageBox, "✅ Password accepted — device unlocked successfully.", MessageBox.TYPE_INFO)
         else:
             self.session.open(MessageBox, "❌ Failed to save unlock flag in /etc/.", MessageBox.TYPE_ERROR)
@@ -321,7 +337,6 @@ class PanelManager(Screen):
         try:
             last_dir = load_last_dir()
 
-            # Already applied
             if last_dir == self.current_dir and os.path.exists(os.path.join(self.current_dir, SUB_FILE)):
                 self.session.open(
                     MessageBox,
@@ -330,7 +345,6 @@ class PanelManager(Screen):
                 )
                 return
 
-            # Apply new directory
             ensure_panel_folder(self.current_dir)
             self._refresh_fields_and_focus()
 
