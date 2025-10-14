@@ -481,6 +481,19 @@ class GreenJobScreen(Screen):
             foregroundColor="yellow"
             transparent="1"
             itemHeight="50" />
+
+        <!-- Vertical texts -->
+        <widget name="left_bar"
+            position="20,160" size="60,760" zPosition="20"
+            font="Regular;26" halign="center" valign="top"
+            noWrap="1" foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
+        <widget name="right_bar"
+            position="1850,160" size="60,760" zPosition="20"
+            font="Regular;26" halign="center" valign="top"
+            noWrap="1" foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
+
     </screen>
     """
 
@@ -498,6 +511,8 @@ class GreenJobScreen(Screen):
         self["RAMInfo"] = Label(get_ram_info())
         self["python_ver"] = Label("Python: " + get_python_version())
         self["net_status"] = Label("Net: " + check_internet())
+        self["left_bar"] = Label("\n".join(list("Version " + Version)))
+        self["right_bar"] = Label("\n".join(list("By ElieSat")))
 
         self.sub_labels_list = MenuList([], enableWrapAround=True)
         self["sub_labels"] = self.sub_labels_list
@@ -731,6 +746,19 @@ class BlueJobScreen(Screen):
             foregroundColor="yellow"
             transparent="1"
             itemHeight="50" />
+
+        <!-- Vertical texts -->
+        <widget name="left_bar"
+            position="20,160" size="60,760" zPosition="20"
+            font="Regular;26" halign="center" valign="top"
+            noWrap="1" foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
+        <widget name="right_bar"
+            position="1850,160" size="60,760" zPosition="20"
+            font="Regular;26" halign="center" valign="top"
+            noWrap="1" foregroundColor="yellow" backgroundColor="#000000"
+            transparent="0" />
+
     </screen>
     """
 
