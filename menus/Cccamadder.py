@@ -413,61 +413,45 @@ class Cccamadder(Screen, ConfigListScreen):
 # GreenJobScreen
 # ----------------------------
 class GreenJobScreen(Screen):
+
     skin = """
-    <screen name="Blank" position="0,0" size="1920,1080" backgroundColor="transparent" flags="wfNoBorder" title="Scripts">
+    <screen name="BlueJobScreen" position="0,0" size="1920,1080" backgroundColor="transparent" flags="wfNoBorder" title="Scripts">
         <ePixmap position="0,0" zPosition="-1" size="1920,1080"
             pixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/background/panel_bg.png"/>
-
-        <!-- Top black bar -->
         <eLabel position="0,0" size="1920,130" zPosition="10" backgroundColor="#000000" />
-
-        <!-- Title -->
         <eLabel text="● Subscription Reader Labels"
             position="350,0" size="800,50" zPosition="11"
             font="Bold;32" halign="left" valign="center" noWrap="1"
-            foregroundColor="yellow" backgroundColor="#000000"
-            transparent="0" />
-
-        <!-- Clock -->
-        <widget name="clock" position="1250,0" size="650,50" zPosition="11"
-            font="Bold;32" halign="right" valign="center"
-            foregroundColor="yellow" backgroundColor="#000000"
-            transparent="0" />
-
-        <!-- Bottom color button bars -->
+            foregroundColor="yellow" backgroundColor="#000000" transparent="0" />
+        <!-- Bottom buttons -->
         <eLabel position="0,1075" size="480,5" zPosition="2" backgroundColor="red" />
         <widget name="red" position="0,1000" size="480,75" zPosition="2"
             font="Bold;32" halign="center" valign="center"
-            text="Red Button"
+            text="Remove Reader"
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="0" />
-
         <eLabel position="480,1075" size="480,5" zPosition="2" backgroundColor="green" />
         <widget name="green" position="480,1000" size="480,75" zPosition="2"
             font="Bold;32" halign="center" valign="center"
-            text="Green Button"
+            text="Show Reader Block"
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="0" />
-
         <eLabel position="960,1075" size="480,5" zPosition="2" backgroundColor="yellow" />
         <widget name="yellow" position="960,1000" size="480,75" zPosition="2"
             font="Bold;32" halign="center" valign="center"
-            text="Yellow Button"
+            text="Test Connection"
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="0" />
-
         <eLabel position="1440,1075" size="480,5" zPosition="2" backgroundColor="blue" />
         <widget name="blue" position="1440,1000" size="480,75" zPosition="2"
             font="Bold;32" halign="center" valign="center"
-            text="Blue Button"
+            text="Show Credentials"
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="0" />
-
-        <!-- Left and Right black bars -->
+        <!-- Bars -->
         <eLabel position="0,130" size="80,870" zPosition="10" backgroundColor="#000000" />
         <eLabel position="1840,130" size="80,870" zPosition="10" backgroundColor="#000000" />
-
-        <!-- System info -->
+        <!-- Date & Time -->
         <widget source="global.CurrentTime" render="Label"
             position="1350,180" size="500,35" zPosition="12"
             font="Bold;32" halign="center" valign="center"
@@ -480,19 +464,17 @@ class GreenJobScreen(Screen):
             foregroundColor="yellow" backgroundColor="#000000" transparent="1">
             <convert type="ClockToText">Format %H:%M:%S</convert>
         </widget>
-
+        <!-- System info -->
         <widget name="image_name" position="1470,420" size="500,35" font="Bold;32" halign="left" valign="center" foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
         <widget name="python_ver" position="1470,460" size="500,35" font="Bold;32" halign="left" valign="center" foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
         <widget name="local_ip" position="1470,500" size="500,35" font="Bold;32" halign="left" valign="center" foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
         <widget name="StorageInfo" position="1470,540" size="500,35" font="Bold;32" halign="left" valign="center" foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
         <widget name="RAMInfo" position="1470,580" size="500,35" font="Bold;32" halign="left" valign="center" foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
         <widget name="net_status" position="1470,620" size="500,35" font="Bold;32" halign="left" valign="center" foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
-
-        <!-- Panel Version -->
+        <!-- Vertical bars -->
         <widget name="left_bar" position="20,160" size="60,760" font="Regular;26" halign="center" valign="top" foregroundColor="yellow" transparent="1" noWrap="1" />
         <widget name="right_bar" position="1850,160" size="60,760" font="Regular;26" halign="center" valign="top" foregroundColor="yellow" transparent="1" noWrap="1" />
-
-        <!-- Subscription Labels (scrollable list) -->
+        <!-- Subscription Labels -->
         <widget name="sub_labels" position="200,200" size="1200,700" zPosition="12"
             scrollbarMode="showOnDemand"
             font="Bold;30"
@@ -507,13 +489,9 @@ class GreenJobScreen(Screen):
         self.session = session
         self.setTitle(_("Subscription Labels"))
 
-        # Left/Right vertical bars
-        vertical_left = "\n".join(list("Version " + Version))
-        vertical_right = "\n".join(list("By ElieSat"))
-        self["left_bar"] = Label(vertical_left)
-        self["right_bar"] = Label(vertical_right)
+        self["left_bar"] = Label("\n".join(list("Version " + Version)))
+        self["right_bar"] = Label("\n".join(list("By ElieSat")))
 
-        # System info
         self["image_name"] = Label("Image: " + get_image_name())
         self["local_ip"] = Label("IP: " + get_local_ip())
         self["StorageInfo"] = Label(get_storage_info())
@@ -521,101 +499,165 @@ class GreenJobScreen(Screen):
         self["python_ver"] = Label("Python: " + get_python_version())
         self["net_status"] = Label("Net: " + check_internet())
 
-        # Clock
-        now = datetime.now().strftime("%Y-%m-%d  %H:%M")
-        self["clock"] = Label(now)
-
-        # Subscription labels list
         self.sub_labels_list = MenuList([], enableWrapAround=True)
         self["sub_labels"] = self.sub_labels_list
         self.update_subscription_list()
 
-        # Buttons
         self["red"] = Label(_("Remove Reader"))
-        self["green"] = Label(_("Test reader"))
-        self["yellow"] = Label(_("Show reader"))
-        self["blue"] = Label(_("Show Reader path"))
+        self["green"] = Label(_("Show Reader Block"))
+        self["yellow"] = Label(_("Test Connection"))
+        self["blue"] = Label(_("Show Credentials"))
 
-        # Actions
         self["actions"] = ActionMap(
             ["OkCancelActions", "ColorActions"],
             {
-                "red": self.dummy,
-                "green": self.dummy,
-                "yellow": self.dummy,
-                "blue": self.dummy,
-                "ok": self.print_selected_label,
+                "red": self.remove_selected_reader,
+                "green": self.show_selected_reader,
+                "yellow": self.test_selected_reader,
+                "blue": self.show_credentials,
+                "ok": self.ok_pressed,  # ✅ OK button now restores reader
                 "cancel": self.close,
             },
             -1,
         )
 
-    def dummy(self):
-        self.session.open(MessageBox, _("This button is not linked yet."), MessageBox.TYPE_INFO, timeout=3)
-
-    def update_subscription_list(self):
-        labels = self.get_subscription_labels()
-        items = []
-        if labels == "No subscription files found.":
-            items.append(("No subscription files found.", ""))
-        else:
-            for line in labels.split("\n\n"):
-                parts = line.split("--->")
-                if len(parts) == 2:
-                    items.append((parts[1].strip(), parts[1].strip()))
-        self.sub_labels_list.setList(items)
-
-    def print_selected_label(self):
-        selected = self.sub_labels_list.getCurrent()
-        if selected:
-            label_name = selected[1]
-            print("Selected label:", label_name)
-            self.session.open(MessageBox, _("Selected: %s" % label_name), MessageBox.TYPE_INFO, 3)
-
+    # ---------- File parsing ----------
     def read_labels_from_file(self, path):
         found = []
         try:
             with open(path, "r") as f:
                 content = f.read()
-            # Split content into [reader] blocks
-            reader_blocks = re.findall(r"\[reader\](.*?)(?=\n\[|$)", content, re.DOTALL | re.IGNORECASE)
+            reader_blocks = re.findall(r"(\[reader\].*?)(?=\n\[|$)", content, re.DOTALL | re.IGNORECASE)
             for block in reader_blocks:
-                label_match = re.search(r"label\s*=\s*(.+)", block, re.IGNORECASE)
-                user_match = re.search(r"user\s*=\s*(.+)", block, re.IGNORECASE)
-                password_match = re.search(r"password\s*=\s*(.+)", block, re.IGNORECASE)
-                
-                # Only show if user or password is present
-                if label_match and (user_match or password_match):
-                    label_text = label_match.group(1).strip()
-                    found.append(f"{path} ---> {label_text}\n")
-        except Exception as e:
-            found.append(f"{path} ERROR: {str(e)}\n")
+                label = re.search(r"label\s*=\s*(.+)", block, re.IGNORECASE)
+                user = re.search(r"user\s*=\s*(.+)", block, re.IGNORECASE)
+                passwd = re.search(r"password\s*=\s*(.+)", block, re.IGNORECASE)
+                if label and user and passwd:
+                    found.append((label.group(1).strip(), path, block.strip()))
+        except:
+            pass
         return found
 
     def get_subscription_labels(self):
-        # Directories and files
-        dirs = ["/media/hdd/ElieSatPanel", "/media/usb/ElieSatPanel", "/media/mmc/ElieSatPanel"]
-        files = ["subscription.txt"]
-        # Full file paths
-        single_files = ["/etc/tuxbox/config/oscam.server", "/etc/tuxbox/config/ncam.server"]
+        files = [
+            "/media/hdd/ElieSatPanel/subscription.txt",
+            "/media/usb/ElieSatPanel/subscription.txt",
+            "/media/mmc/ElieSatPanel/subscription.txt",
+        ]
+        results = []
+        for f in files:
+            if os.path.exists(f):
+                results.extend(self.read_labels_from_file(f))
+        if not results:
+            return [("No valid readers found", "", "")]
+        return results
 
-        labels_found = []
+    def update_subscription_list(self):
+        self.sub_labels_list.setList(self.get_subscription_labels())
 
-        # Read from directories
-        for d in dirs:
-            for fname in files:
-                path = os.path.join(d, fname)
-                if os.path.exists(path):
-                    labels_found.extend(self.read_labels_from_file(path))
+    # ---------- Button functions ----------
+    def remove_selected_reader(self):
+        selected = self.sub_labels_list.getCurrent()
+        if not selected or not selected[1]:
+            return
+        label, file_path, block = selected
 
-        # Read from single file paths
-        for path in single_files:
-            if os.path.exists(path):
-                labels_found.extend(self.read_labels_from_file(path))
+        def confirm(result):
+            if not result:
+                return
+            try:
+                with open(file_path, "r") as f:
+                    content = f.read()
+                new_content = content.replace(block, "").strip()
+                with open(file_path, "w") as f:
+                    f.write(new_content)
+                self.update_subscription_list()
+                self.session.open(MessageBox, _("Removed reader: %s" % label), MessageBox.TYPE_INFO, 3)
+            except Exception as e:
+                self.session.open(MessageBox, _("Error: %s" % str(e)), MessageBox.TYPE_ERROR, 5)
 
-        if not labels_found:
-            return "No subscription files found."
-        return "\n\n".join(labels_found)
+        self.session.openWithCallback(confirm, MessageBox, _("Remove reader %s?" % label), MessageBox.TYPE_YESNO)
+
+    def show_selected_reader(self):
+        selected = self.sub_labels_list.getCurrent()
+        if not selected:
+            return
+        label, file_path, block = selected
+        self.session.open(MessageBox, _("File: %s\n\n%s" % (file_path, block)), MessageBox.TYPE_INFO, 10)
+
+    def test_selected_reader(self):
+        selected = self.sub_labels_list.getCurrent()
+        if not selected:
+            return
+        label, file_path, block = selected
+        host = re.search(r"device\s*=\s*([^,]+)", block)
+        port = re.search(r"device\s*=\s*[^,]+,(\d+)", block)
+        if not host or not port:
+            self.session.open(MessageBox, _("No host/port found."), MessageBox.TYPE_ERROR, 3)
+            return
+        try:
+            sock = socket.create_connection((host.group(1).strip(), int(port.group(1))), timeout=5)
+            sock.close()
+            self.session.open(MessageBox, _("Connection OK to %s:%s" % (host.group(1), port.group(1))), MessageBox.TYPE_INFO, 3)
+        except Exception as e:
+            self.session.open(MessageBox, _("Connection failed: %s" % str(e)), MessageBox.TYPE_ERROR, 5)
+
+    def show_credentials(self):
+        selected = self.sub_labels_list.getCurrent()
+        if not selected:
+            return
+        label, file_path, block = selected
+        host = re.search(r"device\s*=\s*([^,]+)", block)
+        port = re.search(r"device\s*=\s*[^,]+,(\d+)", block)
+        user = re.search(r"user\s*=\s*(.+)", block)
+        passwd = re.search(r"password\s*=\s*(.+)", block)
+        msg = "Label: %s\nFile: %s\nHost: %s\nPort: %s\nUser: %s\nPass: %s" % (
+            label,
+            os.path.basename(file_path),
+            host.group(1).strip() if host else "N/A",
+            port.group(1).strip() if port else "N/A",
+            user.group(1).strip() if user else "N/A",
+            passwd.group(1).strip() if passwd else "N/A",
+        )
+        self.session.open(MessageBox, msg, MessageBox.TYPE_INFO, 10)
+
+    # ---------- OK button: Restore Reader ----------
+    def ok_pressed(self):
+        selected = self.sub_labels_list.getCurrent()
+        if not selected or not selected[1]:
+            return
+        label, file_path, block = selected
+
+        def confirm_restore(result):
+            if not result:
+                return
+
+            targets = [
+                ("/etc/tuxbox/config/oscam.server", "OSCam"),
+                ("/etc/tuxbox/config/ncam.server", "NCam"),
+            ]
+            messages = []
+
+            for target, name in targets:
+                if not os.path.exists(target):
+                    messages.append("%s file not found" % name)
+                    continue
+                try:
+                    with open(target, "r") as f:
+                        content = f.read()
+                    if block.strip() in content:
+                        messages.append("Reader already exists in %s" % name)
+                        continue
+                    with open(target, "a") as f:
+                        f.write("\n\n" + block.strip() + "\n")
+                    messages.append("Restored successfully in %s" % name)
+                except Exception as e:
+                    messages.append("Error restoring in %s: %s" % (name, str(e)))
+
+            final_msg = "\n".join(messages)
+            self.session.open(MessageBox, _(final_msg), MessageBox.TYPE_INFO, 5)
+
+        self.session.openWithCallback(confirm_restore, MessageBox, _("Do you want to restore this reader?"), MessageBox.TYPE_YESNO)
 
 # ----------------------------
 # BlueJobScreen
