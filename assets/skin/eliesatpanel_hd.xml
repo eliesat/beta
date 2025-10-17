@@ -1,7 +1,11 @@
 <screen name="EliesatPanel" position="0,0" size="1280,720"
     backgroundColor="transparent" flags="wfNoBorder" title="ElieSatPanel">
 
-    <!-- Background -->
+    <!-- Solid black background -->
+    <eLabel position="0,0" size="1280,720" zPosition="0"
+        backgroundColor="#000000" />
+
+    <!-- Background image -->
     <ePixmap position="0,0" size="1280,720" zPosition="1"
         pixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/background/panel_bg.png"
         transparent="0" alphatest="blend" />

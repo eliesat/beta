@@ -1,27 +1,19 @@
 <screen name="EliesatPanel" position="0,0" size="1920,1080"
     backgroundColor="transparent" flags="wfNoBorder" title="ElieSatPanel">
 
-    <!-- Background -->
-    <ePixmap position="0,0" size="1920,1080" zPosition="1"
-        pixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/background/panel_bg.png"
-        transparent="0" alphatest="blend" />
+    <!-- Solid background to reduce lag -->
+    <eLabel position="0,0" size="1920,1080" zPosition="1" backgroundColor="#000000" />
 
     <!-- Top black bar -->
-    <eLabel position="0,0" size="1920,130" zPosition="10"
-        backgroundColor="#000000" />
+    <eLabel position="0,0" size="1920,130" zPosition="10" backgroundColor="#000000" />
 
     <!-- Title -->
     <eLabel text="● Welcome to ElieSatPanel – Enjoy the best plugins, addons and tools for your E2 box."
         position="350,0" size="1400,50" zPosition="11"
         font="Bold;32" halign="left" valign="center" noWrap="1"
-        foregroundColor="yellow" backgroundColor="#000000"
-        transparent="0" />
+        foregroundColor="yellow" backgroundColor="#000000" transparent="0" />
 
-    <!-- Top info bar -->
-    <eLabel position="160,60" size="1690,70" zPosition="11"
-        backgroundColor="#000000" transparent="0" />
-
-    <!-- Info labels -->
+    <!-- Top info labels -->
     <widget name="image_name" position="180,60" size="350,35" zPosition="12"
         font="Regular;24" halign="left" valign="center"
         foregroundColor="yellow" backgroundColor="#000000"
@@ -77,19 +69,21 @@
         itemPerPage="12" margin="30"
         itemPixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/icon/Box_off.png"
         selPixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/icon/Box_on.png"
-        foregroundColor="yellow"
-        transparent="1" />
+        foregroundColor="yellow" transparent="1" />
 
     <!-- Description -->
-    <eLabel position="center,190" size="1200,45" zPosition="11"
-        backgroundColor="#000000" transparent="0" />
-
     <widget name="description"
         position="center,190" size="1200,45" zPosition="12"
         font="Bold;32" halign="center" valign="center"
         foregroundColor="orange" backgroundColor="#000000"
-        transparent="1"
-        options="movetype=running,wrap=1" />
+        transparent="1" options="movetype=running,wrap=1" />
+
+    <!-- Pager dots -->
+    <widget name="pagelabel"
+        position="center,800" size="800,30" zPosition="5"
+        font="Regular;26" halign="center" valign="center"
+        foregroundColor="orange" backgroundColor="#000000"
+        transparent="1" />
 
     <!-- Bottom buttons -->
     <eLabel position="0,1075" size="480,5" zPosition="2" backgroundColor="red" />
@@ -120,7 +114,7 @@
         foregroundColor="yellow" backgroundColor="#000000"
         transparent="0" />
 
-    <!-- Side bars -->
+     <!-- Side bars -->
     <eLabel position="0,130" size="80,870" zPosition="2"
         backgroundColor="#000000" transparent="0" />
 
@@ -140,15 +134,7 @@
         backgroundColor="#000000"
         foregroundColor="yellow" transparent="1" noWrap="1" />
 
-    <!-- Pager dots -->
-    <widget name="pagelabel"
-        position="center,800" size="800,30" zPosition="5"
-        font="Regular;26" halign="center" valign="center"
-        foregroundColor="orange"
-        backgroundColor="#000000"
-        transparent="1" />
-
-    <!-- Page counter -->
+     <!-- Page counter -->
     <widget name="pageinfo"
         position="1600,940" size="340,50"
         font="Bold;32" halign="center" valign="center"
