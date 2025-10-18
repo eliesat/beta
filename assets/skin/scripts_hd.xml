@@ -1,6 +1,6 @@
 <screen name="Scripts" position="0,0" size="1280,720" backgroundColor="transparent" flags="wfNoBorder" title="Scripts">
     <ePixmap position="0,0" zPosition="-1" size="1280,720"
-        pixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/background/panel_bg.png"/>
+        pixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/background/panel_bg.jpg"/>
 
     <!-- 🔹 Script list -->
     <widget name="list" position="32,130" size="800,420"

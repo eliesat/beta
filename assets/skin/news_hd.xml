@@ -1,6 +1,6 @@
 <screen name="News" position="0,0" size="1280,720" backgroundColor="transparent" flags="wfNoBorder" title="Info">
     <ePixmap position="0,0" zPosition="-1" size="1280,720"
-        pixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/background/panel_bg.png"/>
+        pixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/background/panel_bg.jpg"/>
 
     <!-- 🔹 Top black bar -->
     <eLabel position="0,0" size="1280,90" zPosition="10" backgroundColor="#000000" />
