@@ -5,7 +5,7 @@ clear >/dev/null 2>&1
 #configuration
 ###########################################
 plugin=beta-main
-version='3.56'
+version='3.57'
 changelog='1.18.10.2025'
 url=https://github.com/eliesat/beta/archive/main.tar.gz
 package=/tmp/$plugin.tar.gz
