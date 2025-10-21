@@ -1,3 +1,20 @@
+        # ---------------- Load Icon ----------------
+        try:
+            icon_path = resolveFilename(
+                SCOPE_PLUGINS,
+                "Extensions/ElieSatPanel/assets/icons/display.png"
+            )
+            if not fileExists(icon_path):
+                icon_path = resolveFilename(
+                    SCOPE_PLUGINS,
+                    "Extensions/ElieSatPanel/assets/icons/default.png"
+                )
+            self.iconPixmap = LoadPixmap(icon_path)
+        except Exception:
+            self.iconPixmap = None
+
+
+
 # -*- coding: utf-8 -*-
 from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
     get_local_ip,
