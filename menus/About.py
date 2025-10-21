@@ -28,7 +28,7 @@ class Abt(Screen):
         self.skin = f"""
 <screen name="About" position="0,0" size="{self.width},{self.height}" backgroundColor="transparent" flags="wfNoBorder" title="About">
     <ePixmap position="0,0" zPosition="-1" size="{self.width},{self.height}"
-        pixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/background/panel_bg.png"/>
+        pixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/background/panel_bg.jpg"/>
 
     <!-- Top black bar -->
     <eLabel position="0,0" size="{self.width},130" zPosition="10" backgroundColor="#000000" />
