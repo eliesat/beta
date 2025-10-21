@@ -1,3 +1,3 @@
 # -*- coding: utf-8 -*-
-Version = "3.58"
+Version = "3.59"
 Panel = 'ElieSatPanel'
