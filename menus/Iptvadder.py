@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+from enigma import eTimer
 from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
     get_local_ip,
     check_internet,
@@ -13,7 +14,7 @@ from Screens.MessageBox import MessageBox
 from Components.ActionMap import ActionMap
 from Components.Label import Label
 from Components.config import ConfigText, getConfigListEntry
-from Components.ConfigList import ConfigList, ConfigListScreen
+from Components.ConfigList import ConfigListScreen
 from Plugins.Extensions.ElieSatPanel.__init__ import Version
 
 class Iptvadder(Screen, ConfigListScreen):
@@ -24,16 +25,9 @@ class Iptvadder(Screen, ConfigListScreen):
 
         <!-- 🔹 Top black bar -->
         <eLabel position="0,0" size="1920,130" zPosition="10" backgroundColor="#000000" />
-        <eLabel text="● IPTV Adder"
+        <eLabel text="● Subscription Editor"
             position="740,0" size="1400,50" zPosition="11"
             font="Bold;32" halign="left" valign="center"
-            foregroundColor="yellow" backgroundColor="#000000"
-            transparent="0" />
-
-        <!-- 🔹 Title -->
-        <eLabel text="● Blank Plugin – Linked to Red Button"
-            position="350,0" size="1400,50" zPosition="11"
-            font="Bold;32" halign="left" valign="center" noWrap="1"
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="0" />
 
@@ -41,28 +35,28 @@ class Iptvadder(Screen, ConfigListScreen):
         <eLabel position="0,1075" size="480,5" zPosition="2" backgroundColor="red" />
         <widget name="red" position="0,1000" size="480,75" zPosition="2"
             font="Bold;32" halign="center" valign="center"
-            text="Red Button"
+            text="Check Path"
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="0" />
 
         <eLabel position="480,1075" size="480,5" zPosition="2" backgroundColor="green" />
         <widget name="green" position="480,1000" size="480,75" zPosition="2"
             font="Bold;32" halign="center" valign="center"
-            text="Green Button"
+            text="Restore"
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="0" />
 
         <eLabel position="960,1075" size="480,5" zPosition="2" backgroundColor="yellow" />
         <widget name="yellow" position="960,1000" size="480,75" zPosition="2"
             font="Bold;32" halign="center" valign="center"
-            text="Yellow Button"
+            text="Send Backup"
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="0" />
 
         <eLabel position="1440,1075" size="480,5" zPosition="2" backgroundColor="blue" />
         <widget name="blue" position="1440,1000" size="480,75" zPosition="2"
             font="Bold;32" halign="center" valign="center"
-            text="Blue Button"
+            text="Show Credentials"
             foregroundColor="yellow" backgroundColor="#000000"
             transparent="0" />
 
@@ -136,17 +130,27 @@ class Iptvadder(Screen, ConfigListScreen):
             font="Bold;32" itemHeight="50"
             foregroundColor="yellow"
             transparent="1" scrollbarMode="showOnDemand"
-            enableWrapAround="1"
-            valign="center"
+            enableWrapAround="1" valign="center"
             selectionPixmap="/usr/lib/enigma2/python/Plugins/Extensions/ElieSatPanel/assets/icon/selection.png"
         />
 
-        <!-- 🔹 Panel Version on LEFT bar -->
+        <!-- Playlist dirs below Password, same spacing -->
+        <widget name="playlists"
+            position="160,400" size="1100,200" zPosition="12"
+            font="Bold;32" halign="left" valign="top"
+            foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
+
+        <!-- Red button result -->
+        <widget name="panel_path"
+            position="150,780" size="1100,160" zPosition="12"
+            font="Bold;32" halign="left" valign="top"
+            foregroundColor="yellow" backgroundColor="#000000" transparent="1" />
+
+        <!-- Left/Right bars -->
         <widget name="left_bar"
             position="20,160" size="60,760" zPosition="20"
             font="Regular;26" halign="center" valign="top"
             foregroundColor="yellow" transparent="1" noWrap="1" />
-        <!-- 🔹 Custom text on RIGHT bar -->
         <widget name="right_bar"
             position="1850,160" size="60,760" zPosition="20"
             font="Regular;26" halign="center" valign="top"
@@ -157,32 +161,28 @@ class Iptvadder(Screen, ConfigListScreen):
     def __init__(self, session):
         Screen.__init__(self, session)
         self.session = session
-        self.setTitle(_("IPTV Adder"))
+        self.setTitle(_("Subscription Editor"))
 
-        # Editable fields with default values
+        # Editable fields
         self.url = ConfigText(default="http://jepro.online")
         self.port = ConfigText(default="2083")
         self.username = ConfigText(default="user")
         self.password = ConfigText(default="pass")
 
-        # ConfigList
         clist = [
             getConfigListEntry("URL:", self.url),
             getConfigListEntry("Port:", self.port),
             getConfigListEntry("Username:", self.username),
             getConfigListEntry("Password:", self.password),
         ]
-
         ConfigListScreen.__init__(self, clist, session=session)
         self["config"].l.setList(clist)
 
-        # Side bar text
-        vertical_left = "\n".join(list("Version " + Version))
-        vertical_right = "\n".join(list("By ElieSat"))
-        self["left_bar"] = Label(vertical_left)
-        self["right_bar"] = Label(vertical_right)
+        # Side bar
+        self["left_bar"] = Label("\n".join(list("Version " + Version)))
+        self["right_bar"] = Label("\n".join(list("By ElieSat")))
 
-        # System info labels
+        # System info
         self["image_name"] = Label("Image: " + get_image_name())
         self["local_ip"] = Label("IP: " + get_local_ip())
         self["StorageInfo"] = Label(get_storage_info())
@@ -190,65 +190,83 @@ class Iptvadder(Screen, ConfigListScreen):
         self["python_ver"] = Label("Python: " + get_python_version())
         self["net_status"] = Label("Net: " + check_internet())
 
-        # Buttons labels
-        self["red"] = Label(_("Red"))
-        self["green"] = Label(_("Green"))
-        self["yellow"] = Label(_("Yellow"))
-        self["blue"] = Label(_("Blue"))
+        # Buttons
+        self["red"] = Label(_("Check Path"))
+        self["green"] = Label(_("Restore"))
+        self["yellow"] = Label(_("Send Backup"))
+        self["blue"] = Label(_("Show Credentials"))
 
-        # Button actions
+        # Playlists and Red button label
+        self["playlists"] = Label(self.get_playlists_dirs())
+        self["panel_path"] = Label("")
+
+        # Prepare panel_dir & isubscription.txt
+        self.panel_dir = self.find_panel_dir()
+
+        # Actions
         self["actions"] = ActionMap(
             ["OkCancelActions", "ColorActions"],
             {
-                "red": self.red_button,
-                "green": self.green_button,
-                "yellow": self.save_reader,
-                "blue": self.blue_button,
+                "red": self.show_isubscription_path,
+                "green": self.restore_reader,
+                "yellow": self.send_backup,
+                "blue": self.show_credentials,
                 "cancel": self.close,
             },
             -1,
         )
 
-    # ----------------------------
-    # Button functions
-    # ----------------------------
-    def red_button(self):
-        self.session.open(MessageBox, "Red Button clicked", MessageBox.TYPE_INFO, timeout=3)
+    # -----------------------------------------------------
+    # Search for panel_dir.cfg and prepare isubscription.txt
+    # -----------------------------------------------------
+    def find_panel_dir(self):
+        search_roots = ["/media/hdd", "/media/mmc"]
+        usb_dirs = [os.path.join("/media", d) for d in os.listdir("/media") if d.startswith("usb")]
+        search_roots.extend(usb_dirs)
 
-    def green_button(self):
-        self.session.open(MessageBox, "Green Button clicked", MessageBox.TYPE_INFO, timeout=3)
+        for root in search_roots:
+            path = os.path.join(root, "ElieSatPanel", "panel_dir.cfg")
+            if os.path.exists(path):
+                folder = os.path.dirname(path)
+                subfile = os.path.join(folder, "isubscription.txt")
+                if not os.path.exists(subfile):
+                    open(subfile, "w").close()
+                return folder
+        return None
 
-    def blue_button(self):
-        self.session.open(MessageBox, "Blue Button clicked", MessageBox.TYPE_INFO, timeout=3)
+    # --- Red button ---
+    def show_isubscription_path(self):
+        if self.panel_dir:
+            path = os.path.join(self.panel_dir, "isubscription.txt")
+            self["panel_path"].setText("isubscription.txt path:\n" + path)
+        else:
+            self["panel_path"].setText("panel_dir.cfg not found in any folder")
 
-    def save_reader(self):
-        # Build reader block
-        reader = (
-            f"[IPTV Reader]\n"
-            f"url = {self.url.value}\n"
-            f"port = {self.port.value}\n"
-            f"username = {self.username.value}\n"
-            f"password = {self.password.value}\n\n"
-        )
+        self.clear_timer = eTimer()
+        self.clear_timer.timeout.get().append(self.clear_panel_path)
+        self.clear_timer.start(5000, True)
 
-        panel_dir = os.path.expanduser("~/.ElieSatPanel")
-        if not os.path.exists(panel_dir):
-            os.makedirs(panel_dir)
+    def clear_panel_path(self):
+        self["panel_path"].setText("")
 
-        filepath = os.path.join(panel_dir, "iptv_readers.txt")
-        # Check if reader already exists
-        exists = False
-        if os.path.exists(filepath):
-            with open(filepath, "r") as f:
-                if reader.strip() in f.read():
-                    exists = True
+    # --- Green (Restore) ---
+    def restore_reader(self):
+        self.session.open(MessageBox, "Restore action triggered", MessageBox.TYPE_INFO, timeout=3)
 
-        if exists:
-            self.session.open(MessageBox, "Reader already exists!", MessageBox.TYPE_INFO, timeout=3)
-            return
+    # --- Yellow (Send Backup) ---
+    def send_backup(self):
+        self.session.open(MessageBox, "Send Backup action triggered", MessageBox.TYPE_INFO, timeout=3)
 
-        # Append reader
-        with open(filepath, "a") as f:
-            f.write(reader)
-        self.session.open(MessageBox, "Reader saved successfully!", MessageBox.TYPE_INFO, timeout=3)
+    # --- Blue (Show Credentials) ---
+    def show_credentials(self):
+        self.session.open(MessageBox, f"Username: {self.username.value}\nPassword: {self.password.value}", MessageBox.TYPE_INFO, timeout=5)
+
+    def get_playlists_dirs(self):
+        dirs = []
+        for root, _, files in os.walk("/etc/enigma2"):
+            if "playlists.txt" in files:
+                dirs.append(root)
+        if not dirs:
+            return "Playlists dir:\n<not found>"
+        return "Playlists dirs:\n" + "\n".join(dirs[:10])
 
