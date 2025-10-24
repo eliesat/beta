@@ -61,6 +61,7 @@ from Plugins.Extensions.ElieSatPanel.menus.Tools import Tools
 from Plugins.Extensions.ElieSatPanel.menus.Toolsp import Toolsp
 from Plugins.Extensions.ElieSatPanel.menus.About import Abt
 from Plugins.Extensions.ElieSatPanel.menus.Extra1 import Extra1
+from Plugins.Extensions.ElieSatPanel.menus.Extra2 import Extra2
 from Plugins.Extensions.ElieSatPanel.menus.Helpers import (
     get_local_ip,
     check_internet,
@@ -587,6 +588,7 @@ class EliesatPanel(Screen):
                 "Tools-panel": Toolsp,
                 "About": Abt,
                 "Extra1": Extra1,
+                "Extra2": Extra2,
             }
             if name in submenu_map:
                 self.session.open(submenu_map[name])
